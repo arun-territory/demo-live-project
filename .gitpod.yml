@@ -1,10 +1,15 @@
 tasks:
-  - name: Install & Start
-    init: |
-      npm install
+  - name: Install Dependencies
+    init: npm install
     command: |
-      npm start
+      echo "🎉 Welcome to the Weather Dashboard Demo!"
+      echo "👉 Just run: npm start"
 
 ports:
   - port: 3000
     onOpen: open-preview
+
+vscode:
+  extensions:
+    - dbaeumer.vscode-eslint
+    - esbenp.prettier-vscode
