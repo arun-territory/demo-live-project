@@ -26,3 +26,19 @@ Try searching for cities like:
 - Responsive design
 
 Happy coding! 🚀
+
+# Weather Dashboard Demo
+
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/arun-territory/demo-live-project)
+
+## Quick Start
+1. Click the "Open in GitPod" button above
+2. Wait for the environment to load
+3. Run: `npm start`
+4. The app will open automatically in the preview window!
+
+## Features
+- Real-time weather data
+- Search any city worldwide
+- Clean, modern UI
+- Responsive design
