@@ -1,8 +1,9 @@
 tasks:
-  - init: |
+  - name: Setup Weather Dashboard
+    init: |
       npm install
     command: |
-      echo "✨ Welcome to the Weather Dashboard Demo!"
+      echo "👋 Welcome to the Weather Dashboard Demo!"
       echo "🚀 Run these commands to start:"
       echo "npm start"
 
@@ -10,12 +11,6 @@ ports:
   - port: 3000
     onOpen: open-preview
     visibility: public
-
-github:
-  prebuilds:
-    master: true
-    branches: true
-    pullRequests: true
 
 vscode:
   extensions:
