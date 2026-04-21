@@ -6,142 +6,235 @@
 <title>Happy Birthday, Prasanna! 🎂</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Dancing+Script:wght@500;700&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Dancing+Script:wght@500;700&family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
+  :root {
+    --bg-0:       #05020b;
+    --bg-1:       #0c0418;
+    --bg-2:       #160727;
+    --pink:       #ff3d8a;
+    --pink-soft:  #ff7ab6;
+    --pink-glow:  #ff2d88;
+    --white:      #ffffff;
+    --ink:        #eaf0ff;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; font-family: 'Poppins', sans-serif; }
+  html, body { height: 100%; overflow: hidden; font-family: 'Poppins', sans-serif; color: var(--ink); }
 
   body {
-    background: linear-gradient(-45deg, #ff9ec7, #c491ff, #ffd3a5, #ff9ec7, #a18cd1);
-    background-size: 400% 400%;
-    animation: gradientShift 18s ease infinite;
+    background: radial-gradient(ellipse at 20% 10%, #2a0a3e 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 90%, #3a0a44 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, #14061f 0%, var(--bg-0) 75%);
     position: relative;
   }
 
-  @keyframes gradientShift {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+  /* Animated aurora glow */
+  .aurora {
+    position: fixed; inset: -20%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(40% 30% at 30% 40%, rgba(255,61,138,0.28), transparent 70%),
+      radial-gradient(35% 30% at 70% 60%, rgba(255,255,255,0.10), transparent 70%),
+      radial-gradient(30% 25% at 50% 80%, rgba(255,61,138,0.18), transparent 70%);
+    filter: blur(40px);
+    animation: auroraShift 14s ease-in-out infinite alternate;
+  }
+  @keyframes auroraShift {
+    0%   { transform: translate3d(-3%,-2%,0) scale(1);   }
+    50%  { transform: translate3d( 3%, 3%,0) scale(1.08);}
+    100% { transform: translate3d(-2%, 2%,0) scale(1.04);}
   }
 
+  /* Starfield */
+  #stars { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
   /* Floating decorations */
-  .floaties { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+  .floaties { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
   .floaty {
     position: absolute;
     bottom: -60px;
-    font-size: 28px;
+    font-size: 26px;
     animation: rise linear infinite;
-    opacity: 0.9;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+    opacity: 0.85;
+    filter: drop-shadow(0 0 12px rgba(255,61,138,0.5));
   }
   @keyframes rise {
     0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
     10%  { opacity: 0.9; }
     90%  { opacity: 0.9; }
-    100% { transform: translateY(-110vh) translateX(40px) rotate(20deg); opacity: 0; }
+    100% { transform: translateY(-110vh) translateX(40px) rotate(18deg); opacity: 0; }
   }
 
-  /* Stage container */
-  .stage { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 2; }
+  /* Sparkle trail */
+  .sparkle {
+    position: fixed;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, #ff7ab6 45%, transparent 70%);
+    box-shadow: 0 0 10px #fff, 0 0 24px var(--pink);
+    pointer-events: none;
+    z-index: 9;
+    animation: sparkleFade 0.9s ease-out forwards;
+  }
+  @keyframes sparkleFade {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(180deg); }
+  }
 
-  /* Landing */
+  /* Stage */
+  .stage { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 3; }
   #landing { flex-direction: column; text-align: center; padding: 20px; }
+
+  /* Headline */
+  .eyebrow {
+    letter-spacing: 0.4em;
+    font-size: clamp(0.7rem, 1.3vw, 0.85rem);
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 18px;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 8px 18px;
+    border-radius: 50px;
+    backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.04);
+  }
   .title {
     font-family: 'Great Vibes', cursive;
-    font-size: clamp(3rem, 10vw, 7rem);
-    background: linear-gradient(90deg, #ff4d8d, #ffb347, #c86dd7, #ff4d8d);
+    font-size: clamp(3.2rem, 11vw, 8rem);
+    color: var(--white);
+    line-height: 1;
+    text-shadow:
+      0 0 30px rgba(255,61,138,0.6),
+      0 0 60px rgba(255,61,138,0.35),
+      0 0 120px rgba(255,255,255,0.2);
+    animation: bob 3.5s ease-in-out infinite;
+  }
+  .name {
+    font-family: 'Dancing Script', cursive;
+    font-weight: 700;
+    font-size: clamp(2rem, 7vw, 5rem);
+    margin-top: 4px;
+    background: linear-gradient(90deg, #fff 0%, var(--pink) 40%, #fff 60%, var(--pink) 100%);
     background-size: 300% 100%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: shimmer 4s linear infinite, bob 3s ease-in-out infinite;
-    text-shadow: 0 6px 30px rgba(255,255,255,0.4);
-    line-height: 1.1;
+    animation: shimmer 4s linear infinite;
+    filter: drop-shadow(0 0 20px rgba(255,61,138,0.45));
   }
-  .name {
-    font-family: 'Dancing Script', cursive;
-    font-size: clamp(2rem, 7vw, 4.5rem);
-    color: #fff;
-    text-shadow: 0 4px 20px rgba(200,50,120,0.55), 0 0 40px rgba(255,255,255,0.35);
-    margin-top: 4px;
-    font-weight: 700;
-    animation: bob 3.5s ease-in-out infinite;
-  }
+  @keyframes shimmer { 0% {background-position: 0% 50%;} 100% {background-position: 300% 50%;} }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
   .subtitle {
-    margin-top: 18px;
-    color: #fff;
-    font-size: clamp(0.9rem, 2vw, 1.2rem);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    opacity: 0.92;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    margin-top: 22px;
+    color: rgba(255,255,255,0.75);
+    font-size: clamp(0.9rem, 1.8vw, 1.15rem);
+    font-weight: 400;
+    letter-spacing: 0.6px;
   }
-  @keyframes shimmer {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 300% 50%; }
+
+  /* Dodge progress ring */
+  .progress {
+    position: absolute;
+    top: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.82rem; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 8px 16px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 50px;
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(10px);
+    z-index: 6;
   }
-  @keyframes bob {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-8px); }
+  .progress .dots { display: flex; gap: 5px; }
+  .progress .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    transition: all 0.35s ease;
+  }
+  .progress .dot.on {
+    background: var(--pink);
+    box-shadow: 0 0 10px var(--pink-glow), 0 0 20px rgba(255,61,138,0.5);
+    transform: scale(1.2);
   }
 
   /* Catch me button */
   .catch-btn {
     position: absolute;
-    top: 60%;
+    top: 58%;
     left: 50%;
     transform: translate(-50%, -50%);
-    padding: 18px 38px;
+    padding: 20px 44px;
     font-family: 'Poppins', sans-serif;
     font-weight: 800;
-    font-size: clamp(1rem, 2.3vw, 1.35rem);
-    color: #fff;
-    background: linear-gradient(135deg, #ff4d8d, #ff7ab6, #c86dd7);
+    font-size: clamp(1rem, 2.3vw, 1.4rem);
+    color: var(--white);
+    background: linear-gradient(135deg, var(--pink) 0%, #ff1f7a 60%, #ff5aa0 100%);
     background-size: 200% 200%;
     border: none;
-    border-radius: 50px;
+    border-radius: 60px;
     cursor: pointer;
-    box-shadow: 0 10px 30px rgba(255, 77, 141, 0.45), 0 0 0 4px rgba(255,255,255,0.35) inset;
+    letter-spacing: 0.5px;
+    box-shadow:
+      0 0 0 2px rgba(255,255,255,0.25) inset,
+      0 18px 45px -10px rgba(255,61,138,0.75),
+      0 0 80px rgba(255,61,138,0.45);
     transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1),
                 top  0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                transform 0.25s ease,
                 box-shadow 0.3s ease,
                 background-position 0.4s ease;
     user-select: none;
     white-space: nowrap;
     z-index: 5;
-    animation: pulse 1.6s ease-in-out infinite;
+    animation: pulse 1.8s ease-in-out infinite;
   }
-  .catch-btn:hover { background-position: 100% 50%; }
+  .catch-btn::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 60px;
+    padding: 3px;
+    background: conic-gradient(from 0deg, #fff, var(--pink), #fff, var(--pink), #fff);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: spin 4s linear infinite;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse {
-    0%, 100% { box-shadow: 0 10px 30px rgba(255, 77, 141, 0.45), 0 0 0 4px rgba(255,255,255,0.35) inset; }
-    50%      { box-shadow: 0 14px 40px rgba(255, 77, 141, 0.7),  0 0 0 4px rgba(255,255,255,0.5)  inset; }
+    0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.25) inset, 0 18px 45px -10px rgba(255,61,138,0.75), 0 0 80px rgba(255,61,138,0.45); }
+    50%      { box-shadow: 0 0 0 2px rgba(255,255,255,0.45) inset, 0 22px 60px -10px rgba(255,61,138,1),   0 0 120px rgba(255,61,138,0.7); }
   }
 
   /* Taunt bubble */
   .taunt {
     position: absolute;
-    padding: 10px 16px;
-    background: #fff;
-    color: #d0337a;
-    border-radius: 20px;
+    padding: 10px 18px;
+    background: rgba(255,255,255,0.96);
+    color: #c01866;
+    border-radius: 22px;
     font-weight: 700;
     font-size: 0.95rem;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 30px rgba(255,61,138,0.35), 0 0 0 1px rgba(255,61,138,0.2);
     pointer-events: none;
-    opacity: 0;
-    transform: scale(0.6);
-    animation: taunt-pop 1.4s ease forwards;
+    animation: taunt-pop 1.5s ease forwards;
     z-index: 10;
     white-space: nowrap;
   }
   @keyframes taunt-pop {
-    0%   { opacity: 0; transform: scale(0.4) translateY(10px); }
-    20%  { opacity: 1; transform: scale(1.1) translateY(-4px); }
-    40%  { transform: scale(1) translateY(0); }
+    0%   { opacity: 0; transform: scale(0.4) translate(-50%, 10px); }
+    20%  { opacity: 1; transform: scale(1.1) translate(-50%, -4px); }
+    40%  {             transform: scale(1)   translate(-50%,  0);   }
     80%  { opacity: 1; }
-    100% { opacity: 0; transform: scale(0.9) translateY(-20px); }
+    100% { opacity: 0; transform: scale(0.9) translate(-50%, -20px); }
   }
 
   /* Celebration */
@@ -155,59 +248,62 @@
     padding: 20px;
     text-align: center;
   }
-  #celebration.active { display: flex; animation: zoomIn 1s ease; }
+  #celebration.active { display: flex; animation: zoomIn 1.1s ease; }
   @keyframes zoomIn {
-    from { opacity: 0; transform: scale(0.6); }
-    to   { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.6); filter: blur(10px); }
+    to   { opacity: 1; transform: scale(1);   filter: blur(0); }
   }
 
   .photo-frame {
-    width: clamp(160px, 28vw, 240px);
-    height: clamp(160px, 28vw, 240px);
+    width: clamp(170px, 28vw, 250px);
+    height: clamp(170px, 28vw, 250px);
     border-radius: 50%;
-    background: linear-gradient(135deg, #fff1f8, #ffe2ef);
-    border: 6px solid #fff;
-    box-shadow: 0 20px 60px rgba(200, 50, 120, 0.45), 0 0 0 10px rgba(255,255,255,0.25);
+    background: linear-gradient(135deg, #1a0a23, #2a0e36);
+    border: 4px solid rgba(255,255,255,0.9);
+    box-shadow:
+      0 0 0 10px rgba(255,61,138,0.25),
+      0 25px 80px rgba(255,61,138,0.55),
+      0 0 120px rgba(255,61,138,0.4);
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-    animation: float 3s ease-in-out infinite;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 22px;
+    animation: float 3.2s ease-in-out infinite;
     position: relative;
   }
-  .photo-frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+  .photo-frame::after {
+    content: "";
+    position: absolute; inset: -6px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--pink), #fff, var(--pink), #fff, var(--pink));
+    z-index: -1;
+    animation: spin 6s linear infinite;
+    filter: blur(6px);
+    opacity: 0.85;
   }
+  .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .photo-frame .initials {
     font-family: 'Dancing Script', cursive;
     font-size: clamp(4rem, 10vw, 7rem);
     font-weight: 700;
-    background: linear-gradient(135deg, #ff4d8d, #c86dd7);
+    background: linear-gradient(135deg, #fff, var(--pink));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(-1deg); }
-    50%      { transform: translateY(-12px) rotate(1deg); }
-  }
+  @keyframes float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-14px) rotate(1deg); } }
 
   .big-title {
     font-family: 'Great Vibes', cursive;
-    font-size: clamp(3rem, 12vw, 8rem);
-    color: #fff;
-    text-shadow: 0 6px 30px rgba(200,50,120,0.7), 0 0 60px rgba(255,215,100,0.6);
+    font-size: clamp(3rem, 12vw, 8.5rem);
+    color: var(--white);
     line-height: 1;
+    text-shadow: 0 0 30px rgba(255,61,138,0.8), 0 0 80px rgba(255,61,138,0.5);
     animation: bob 3s ease-in-out infinite;
   }
   .big-name {
     font-family: 'Dancing Script', cursive;
-    font-size: clamp(2.5rem, 9vw, 6rem);
-    background: linear-gradient(90deg, #fff1a8, #fff, #ffd1e6, #fff1a8);
+    font-size: clamp(2.6rem, 9vw, 6rem);
+    background: linear-gradient(90deg, #fff, var(--pink), #fff, var(--pink));
     background-size: 300% 100%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -215,53 +311,69 @@
     animation: shimmer 3s linear infinite;
     font-weight: 700;
     margin-top: 6px;
+    filter: drop-shadow(0 0 24px rgba(255,61,138,0.6));
   }
   .message {
-    margin-top: 22px;
-    max-width: 680px;
-    color: #fff;
+    margin-top: 26px;
+    max-width: 700px;
+    color: rgba(255,255,255,0.9);
     font-size: clamp(1rem, 2vw, 1.25rem);
-    line-height: 1.6;
-    font-weight: 500;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    line-height: 1.7;
+    font-weight: 300;
     padding: 0 16px;
+    letter-spacing: 0.2px;
   }
-  .replay {
-    margin-top: 28px;
-    padding: 12px 28px;
-    border: 2px solid #fff;
-    color: #fff;
-    background: rgba(255,255,255,0.15);
-    border-radius: 50px;
-    font-weight: 700;
-    cursor: pointer;
-    font-size: 1rem;
-    backdrop-filter: blur(8px);
-    transition: all 0.25s ease;
-  }
-  .replay:hover { background: #fff; color: #d0337a; transform: translateY(-2px); }
+  .message strong { color: var(--pink-soft); font-weight: 600; }
 
-  /* Cake */
+  .replay {
+    margin-top: 30px;
+    padding: 13px 32px;
+    border: 1.5px solid rgba(255,255,255,0.5);
+    color: var(--white);
+    background: rgba(255,255,255,0.06);
+    border-radius: 50px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    letter-spacing: 0.4px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+  .replay:hover {
+    background: var(--pink);
+    border-color: var(--pink);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(255,61,138,0.5);
+  }
+
+  /* Cake corner */
   .cake-wrap { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none; }
-  .cake { font-size: clamp(2.5rem, 6vw, 4rem); animation: bob 2.4s ease-in-out infinite; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.25)); }
+  .cake { font-size: clamp(2.5rem, 6vw, 4rem); animation: bob 2.4s ease-in-out infinite; filter: drop-shadow(0 0 20px rgba(255,61,138,0.6)); }
 
   /* Fireworks canvas */
   #fireworks { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
 
-  /* Hint */
-  .hint { position: absolute; bottom: 18px; right: 24px; color: rgba(255,255,255,0.75); font-size: 0.8rem; font-weight: 500; z-index: 5; }
+  .hint { position: absolute; bottom: 18px; right: 24px; color: rgba(255,255,255,0.55); font-size: 0.78rem; font-weight: 400; z-index: 5; letter-spacing: 0.5px; }
 </style>
 </head>
 <body>
 
+<div class="aurora"></div>
+<canvas id="stars"></canvas>
 <div class="floaties" id="floaties"></div>
 
 <section id="landing" class="stage">
+  <div class="progress" id="progress">
+    <span>Catch Progress</span>
+    <div class="dots" id="dots"></div>
+  </div>
+  <div class="eyebrow">A little surprise for you</div>
   <div class="title">Happy Birthday</div>
   <div class="name">Prasanna Ponugoti</div>
-  <div class="subtitle">Something magical is waiting... can you catch it? 💖</div>
+  <div class="subtitle">Can you catch the button? It's a bit playful today... 💕</div>
   <button id="catchBtn" class="catch-btn">🎁 Click me, Prasanna!</button>
-  <div class="hint">Tip: move your cursor close to the button 😉</div>
+  <div class="hint">hint: move your cursor close to the button</div>
 </section>
 
 <section id="celebration" class="stage">
@@ -273,9 +385,9 @@
   <div class="big-title">Happy Birthday</div>
   <div class="big-name">Prasanna 💕</div>
   <p class="message">
-    On your special day, I just want you to know — you make every ordinary moment feel like a celebration.
+    On your special day, I just want you to know — you make every ordinary moment feel like a <strong>celebration</strong>.
     Thank you for your laughter, your love, and for being the most beautiful part of my world.
-    Here's to another year of us, more adventures, and endless smiles. I love you, always. 🎂🌸
+    Here's to another year of <strong>us</strong>, more adventures, and endless smiles. I love you, always. 🎂🌸
   </p>
   <button class="replay" onclick="replay()">🔄 Play again</button>
 </section>
@@ -284,21 +396,94 @@
 <canvas id="fireworks"></canvas>
 
 <script>
+/* ---------- Starfield ---------- */
+(function starfield() {
+  const c = document.getElementById('stars');
+  const x = c.getContext('2d');
+  let stars = [];
+  function size() {
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+    stars = [];
+    const n = Math.floor((c.width * c.height) / 7000);
+    for (let i = 0; i < n; i++) {
+      stars.push({
+        x: Math.random() * c.width,
+        y: Math.random() * c.height,
+        r: Math.random() * 1.4 + 0.2,
+        t: Math.random() * Math.PI * 2,
+        s: 0.005 + Math.random() * 0.02,
+        hue: Math.random() < 0.15 ? 'pink' : 'white'
+      });
+    }
+  }
+  size();
+  window.addEventListener('resize', size);
+  function draw() {
+    x.clearRect(0, 0, c.width, c.height);
+    stars.forEach(st => {
+      st.t += st.s;
+      const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(st.t));
+      x.globalAlpha = a;
+      x.fillStyle = st.hue === 'pink' ? '#ff7ab6' : '#ffffff';
+      x.shadowColor = st.hue === 'pink' ? '#ff3d8a' : '#ffffff';
+      x.shadowBlur = 6;
+      x.beginPath();
+      x.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+      x.fill();
+    });
+    x.globalAlpha = 1;
+    x.shadowBlur = 0;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
 /* ---------- Floating balloons/hearts ---------- */
 (function spawnFloaties() {
-  const emojis = ['🎈','💖','⭐','🌸','✨','🎀','💝','🧁'];
+  const emojis = ['🎈','💖','✨','🌸','💫','🎀','💝'];
   const host = document.getElementById('floaties');
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 22; i++) {
     const el = document.createElement('div');
     el.className = 'floaty';
     el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
     el.style.left = Math.random() * 100 + 'vw';
-    el.style.fontSize = (20 + Math.random() * 28) + 'px';
-    el.style.animationDuration = (10 + Math.random() * 14) + 's';
-    el.style.animationDelay = (Math.random() * 12) + 's';
+    el.style.fontSize = (18 + Math.random() * 26) + 'px';
+    el.style.animationDuration = (12 + Math.random() * 16) + 's';
+    el.style.animationDelay = (Math.random() * 14) + 's';
     host.appendChild(el);
   }
 })();
+
+/* ---------- Sparkle cursor trail ---------- */
+let lastSpark = 0;
+document.addEventListener('mousemove', (e) => {
+  const now = Date.now();
+  if (now - lastSpark < 35) return;
+  lastSpark = now;
+  const s = document.createElement('div');
+  s.className = 'sparkle';
+  s.style.left = e.clientX + 'px';
+  s.style.top  = e.clientY + 'px';
+  const size = 6 + Math.random() * 8;
+  s.style.width  = size + 'px';
+  s.style.height = size + 'px';
+  document.body.appendChild(s);
+  setTimeout(() => s.remove(), 900);
+});
+
+/* ---------- Progress dots ---------- */
+const SURRENDER_AFTER = 10;
+const dotsHost = document.getElementById('dots');
+for (let i = 0; i < SURRENDER_AFTER; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot';
+  dotsHost.appendChild(d);
+}
+const dotEls = [...dotsHost.children];
+function refreshDots() {
+  dotEls.forEach((d, i) => d.classList.toggle('on', i < dodgeCount));
+}
 
 /* ---------- Dodging button ---------- */
 const btn = document.getElementById('catchBtn');
@@ -306,24 +491,21 @@ const landing = document.getElementById('landing');
 
 const taunts = [
   "Nope! 😜",
-  "Too slow, Prasanna! 🏃‍♀️💨",
+  "Too slow, Prasanna! 💨",
   "Hehe, missed! 🙈",
   "You can't catch me! 😆",
   "So close... but no! 😏",
-  "Try harder! 💕",
+  "Try harder, love! 💕",
   "Haha nope! 🤭",
   "Almost! Keep going! ✨",
-  "Nice try, love! 😘",
-  "Okay okay, one more time! 🥺",
-  "Fine... I'll slow down! 😇",
-  "You win this round! 💖"
+  "Nice try, beautiful! 😘",
+  "Okay okay... fine! 🥺"
 ];
 
 let dodgeCount = 0;
-const SURRENDER_AFTER = 7;
 
 function randomPos() {
-  const pad = 24;
+  const pad = 28;
   const w = btn.offsetWidth;
   const h = btn.offsetHeight;
   const maxX = window.innerWidth  - w - pad * 2;
@@ -341,35 +523,31 @@ function moveButton() {
 }
 
 function showTaunt() {
-  const msg = taunts[Math.min(dodgeCount, taunts.length - 1)];
+  const msg = taunts[Math.min(dodgeCount - 1, taunts.length - 1)];
   const t = document.createElement('div');
   t.className = 'taunt';
   t.textContent = msg;
   const r = btn.getBoundingClientRect();
   t.style.left = (r.left + r.width / 2) + 'px';
   t.style.top  = (r.top - 14) + 'px';
-  t.style.transform = 'translate(-50%, -100%)';
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 1500);
 }
 
-/* Dodge when cursor approaches */
 document.addEventListener('mousemove', (e) => {
   if (dodgeCount >= SURRENDER_AFTER) return;
   const r = btn.getBoundingClientRect();
   const cx = r.left + r.width / 2;
   const cy = r.top  + r.height / 2;
-  const dx = e.clientX - cx;
-  const dy = e.clientY - cy;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 110) {
+  const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+  if (dist < 120) {
     dodgeCount++;
+    refreshDots();
     showTaunt();
     moveButton();
   }
 });
 
-/* Dodge on mobile tap near button (touchstart on background) */
 document.addEventListener('touchstart', (e) => {
   if (dodgeCount >= SURRENDER_AFTER) return;
   if (e.target === btn) return;
@@ -379,8 +557,9 @@ document.addEventListener('touchstart', (e) => {
   const cx = r.left + r.width / 2;
   const cy = r.top  + r.height / 2;
   const dist = Math.hypot(t.clientX - cx, t.clientY - cy);
-  if (dist < 160) {
+  if (dist < 170) {
     dodgeCount++;
+    refreshDots();
     showTaunt();
     moveButton();
   }
@@ -397,34 +576,15 @@ function celebrate() {
 }
 
 function fireConfettiBarrage() {
-  const duration = 6000;
+  const duration = 7000;
   const end = Date.now() + duration;
-  const colors = ['#ff4d8d','#ffd166','#c86dd7','#06d6a0','#ffffff','#ff7ab6'];
+  const colors = ['#ff3d8a','#ffffff','#ff7ab6','#ffb7d5','#ffd1e6','#ff1f7a'];
   (function frame() {
-    confetti({
-      particleCount: 5,
-      angle: 60,
-      spread: 70,
-      origin: { x: 0, y: 0.7 },
-      colors
-    });
-    confetti({
-      particleCount: 5,
-      angle: 120,
-      spread: 70,
-      origin: { x: 1, y: 0.7 },
-      colors
-    });
+    confetti({ particleCount: 5, angle: 60,  spread: 75, origin: { x: 0, y: 0.7 }, colors });
+    confetti({ particleCount: 5, angle: 120, spread: 75, origin: { x: 1, y: 0.7 }, colors });
     if (Date.now() < end) requestAnimationFrame(frame);
   })();
-  // Big opening burst
-  confetti({
-    particleCount: 180,
-    spread: 140,
-    startVelocity: 55,
-    origin: { x: 0.5, y: 0.55 },
-    colors
-  });
+  confetti({ particleCount: 220, spread: 150, startVelocity: 60, origin: { x: 0.5, y: 0.55 }, colors });
 }
 
 /* ---------- Fireworks ---------- */
@@ -433,48 +593,49 @@ const ctx = fw.getContext('2d');
 let fwRunning = false;
 let particles = [];
 
-function sizeCanvas() {
-  fw.width  = window.innerWidth;
-  fw.height = window.innerHeight;
-}
+function sizeCanvas() { fw.width = window.innerWidth; fw.height = window.innerHeight; }
 sizeCanvas();
 window.addEventListener('resize', sizeCanvas);
 
 function launchFirework() {
-  const x = fw.width  * (0.15 + Math.random() * 0.7);
-  const y = fw.height * (0.2  + Math.random() * 0.35);
-  const hue = Math.floor(Math.random() * 360);
-  const count = 70;
+  const x = fw.width  * (0.12 + Math.random() * 0.76);
+  const y = fw.height * (0.18 + Math.random() * 0.38);
+  const pinkish = Math.random() < 0.55;
+  const hue = pinkish ? 330 + Math.random() * 25 : Math.random() * 360;
+  const count = 80;
   for (let i = 0; i < count; i++) {
     const angle = (Math.PI * 2) * (i / count);
-    const speed = 2 + Math.random() * 3.5;
+    const speed = 2 + Math.random() * 4;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 1,
-      color: `hsl(${hue + Math.random() * 40}, 100%, 65%)`
+      color: `hsl(${hue}, 100%, ${65 + Math.random() * 15}%)`
     });
   }
 }
 
 function tickFireworks() {
   if (!fwRunning) return;
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillStyle = 'rgba(5,2,11,0.18)';
   ctx.fillRect(0, 0, fw.width, fw.height);
   particles.forEach(p => {
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += 0.04;
+    p.vy += 0.045;
     p.vx *= 0.99;
-    p.life -= 0.012;
+    p.life -= 0.011;
     ctx.globalAlpha = Math.max(0, p.life);
     ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2);
     ctx.fill();
   });
   ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
   particles = particles.filter(p => p.life > 0);
   requestAnimationFrame(tickFireworks);
 }
@@ -482,23 +643,22 @@ function tickFireworks() {
 function startFireworks() {
   fwRunning = true;
   tickFireworks();
-  const iv = setInterval(launchFirework, 700);
-  // Keep launching for 12s, then slow down
-  setTimeout(() => clearInterval(iv), 12000);
+  const iv = setInterval(launchFirework, 650);
+  setTimeout(() => clearInterval(iv), 14000);
   launchFirework();
 }
 
 /* ---------- Replay ---------- */
 function replay() {
   dodgeCount = 0;
+  refreshDots();
   particles = [];
   ctx.clearRect(0, 0, fw.width, fw.height);
   fwRunning = false;
   document.getElementById('celebration').classList.remove('active');
   landing.style.display = 'flex';
-  // Reset button to center
   btn.style.left = '50%';
-  btn.style.top  = '60%';
+  btn.style.top  = '58%';
   btn.style.transform = 'translate(-50%, -50%)';
 }
 </script>
