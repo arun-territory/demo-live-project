@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>Happy Birthday, Prasanna! 🎂</title>
+<!-- v3 flexible photo frame -->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Dancing+Script:wght@500;700&family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -274,41 +279,49 @@
   }
 
   .photo-frame {
-    /* Flexible: scales with the SMALLER of viewport width or height,
-       so big photos never blow up on phones. */
-    --size: min(32vw, 32vh, 240px);
-    width: var(--size);
-    height: var(--size);
-    min-width: 130px;
-    min-height: 130px;
-    flex-shrink: 0;
-    border-radius: 50%;
+    /* No fixed size — frame shrink-wraps the image, which has its
+       own max-width/max-height caps below. Ensures the FULL photo
+       shows uncropped and stays flexible on any viewport. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 28px;
     background: linear-gradient(135deg, #1a0a23, #2a0e36);
-    border: 4px solid rgba(255,255,255,0.9);
+    border: 4px solid rgba(255,255,255,0.92);
     box-shadow:
       0 0 0 8px rgba(255,61,138,0.22),
       0 20px 60px rgba(255,61,138,0.5),
       0 0 100px rgba(255,61,138,0.35);
     overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
     animation: float 3.2s ease-in-out infinite;
     position: relative;
+    max-width: 100%;
   }
   .photo-frame::after {
     content: "";
     position: absolute; inset: -6px;
-    border-radius: 50%;
+    border-radius: 32px;
     background: conic-gradient(from 0deg, var(--pink), #fff, var(--pink), #fff, var(--pink));
     z-index: -1;
     animation: spin 6s linear infinite;
     filter: blur(6px);
     opacity: 0.85;
   }
-  .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-frame img {
+    display: block;
+    max-width: min(82vw, 360px);
+    max-height: min(50vh, 460px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 24px;
+  }
   .photo-frame .initials {
     font-family: 'Dancing Script', cursive;
     font-size: clamp(3rem, 9vw, 6rem);
     font-weight: 700;
+    width: min(65vw, 240px);
+    height: min(65vw, 240px);
     background: linear-gradient(135deg, #fff, var(--pink));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -403,7 +416,7 @@
     <div class="photo-frame">
       <img id="prasannaImg" src="assets/prasanna.jpg" alt="Prasanna"
            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-      <div class="initials" style="display:none; width:100%; height:100%; align-items:center; justify-content:center;">PP</div>
+      <div class="initials" style="display:none; align-items:center; justify-content:center;">PP</div>
     </div>
     <div class="big-title">Happy Birthday</div>
     <div class="big-name">Prasanna 💕</div>
