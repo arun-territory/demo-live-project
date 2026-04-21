@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>Happy Birthday, Prasanna! 🎂</title>
-<!-- v4 mobile tap dodge + 5 click limit -->
+<!-- v5 debounced dodge, fast transition, touch-only on mobile -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -190,8 +190,8 @@
       0 0 0 2px rgba(255,255,255,0.25) inset,
       0 18px 45px -10px rgba(255,61,138,0.75),
       0 0 80px rgba(255,61,138,0.45);
-    transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                top  0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    transition: left 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+                top  0.18s cubic-bezier(0.22, 1, 0.36, 1),
                 box-shadow 0.3s ease,
                 background-position 0.4s ease;
     user-select: none;
@@ -408,7 +408,7 @@
   <div class="name">Prasanna Ponugoti</div>
   <div class="subtitle">Can you catch the button? It's a bit playful today... 💕</div>
   <button id="catchBtn" class="catch-btn">🎁 Click me, Prasanna!</button>
-  <div class="hint">hint: move your cursor close to the button</div>
+  <div class="hint">hint: try to tap the button — it's playful! <span style="opacity:0.5">v5</span></div>
 </section>
 
 <section id="celebration" class="stage">
@@ -535,6 +535,13 @@ const taunts = [
 ];
 
 let dodgeCount = 0;
+let lastDodgeAt = 0;
+const DODGE_COOLDOWN = 300; // ms — prevents double-counts from
+                            // mobile's touchstart + synthesized
+                            // mousemove/click firing together
+
+const IS_TOUCH = ('ontouchstart' in window)
+              || (navigator.maxTouchPoints > 0);
 
 function randomPos() {
   const pad = 28;
@@ -566,22 +573,37 @@ function showTaunt() {
   setTimeout(() => t.remove(), 1500);
 }
 
-document.addEventListener('mousemove', (e) => {
-  if (dodgeCount >= SURRENDER_AFTER) return;
-  const r = btn.getBoundingClientRect();
-  const cx = r.left + r.width / 2;
-  const cy = r.top  + r.height / 2;
-  const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-  if (dist < 120) {
-    dodgeCount++;
-    refreshDots();
-    showTaunt();
-    moveButton();
-  }
-});
+/* Single entry point for every dodge. Debounced so mobile can't
+   double-count a single tap, and counts are capped so we never
+   exceed the surrender threshold. Returns true if a dodge fired. */
+function tryDodge() {
+  if (dodgeCount >= SURRENDER_AFTER - 1) return false;
+  const now = Date.now();
+  if (now - lastDodgeAt < DODGE_COOLDOWN) return false;
+  lastDodgeAt = now;
+  dodgeCount++;
+  refreshDots();
+  showTaunt();
+  moveButton();
+  return true;
+}
 
+/* Desktop only: button runs away as the cursor approaches.
+   Disabled on touch devices to avoid double-counting with taps. */
+if (!IS_TOUCH) {
+  document.addEventListener('mousemove', (e) => {
+    if (dodgeCount >= SURRENDER_AFTER - 1) return;
+    const r = btn.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top  + r.height / 2;
+    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+    if (dist < 130) tryDodge();
+  });
+}
+
+/* Mobile: near-miss tap anywhere in the page still counts as a
+   dodge attempt, to keep the game fair on touch screens. */
 document.addEventListener('touchstart', (e) => {
-  if (dodgeCount >= SURRENDER_AFTER) return;
   if (e.target === btn) return;
   const t = e.touches[0];
   if (!t) return;
@@ -589,26 +611,16 @@ document.addEventListener('touchstart', (e) => {
   const cx = r.left + r.width / 2;
   const cy = r.top  + r.height / 2;
   const dist = Math.hypot(t.clientX - cx, t.clientY - cy);
-  if (dist < 170) {
-    dodgeCount++;
-    refreshDots();
-    showTaunt();
-    moveButton();
-  }
+  if (dist < 200) tryDodge();
 }, { passive: true });
 
 /* Direct tap/click on the button: dodge until we've hit the
-   surrender count, then celebrate. This makes mobile work the
-   same way as desktop — every attempt counts, and the 5th wins. */
-btn.addEventListener('click', (e) => {
+   surrender count, then celebrate. Attempt 5 wins. */
+btn.addEventListener('click', () => {
   if (dodgeCount < SURRENDER_AFTER - 1) {
-    dodgeCount++;
-    refreshDots();
-    showTaunt();
-    moveButton();
+    tryDodge();
     return;
   }
-  // Final tap — she caught it!
   dodgeCount = SURRENDER_AFTER;
   refreshDots();
   celebrate();
