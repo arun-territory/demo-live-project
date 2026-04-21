@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>Happy Birthday, Prasanna! 🎂</title>
-<!-- v5 debounced dodge, fast transition, touch-only on mobile -->
+<!-- v6 laptop-first: big photo, full cursor-chase everywhere -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -316,16 +316,32 @@
     object-fit: contain;
     border-radius: 24px;
   }
+  /* On laptop/desktop screens give the photo much more presence */
+  @media (min-width: 900px) {
+    .photo-frame img {
+      max-width: min(48vw, 520px);
+      max-height: min(68vh, 640px);
+    }
+    .photo-frame { border-radius: 32px; }
+    .photo-frame::after { border-radius: 36px; }
+  }
   .photo-frame .initials {
     font-family: 'Dancing Script', cursive;
-    font-size: clamp(3rem, 9vw, 6rem);
+    font-size: clamp(3rem, 9vw, 7rem);
     font-weight: 700;
-    width: min(65vw, 240px);
-    height: min(65vw, 240px);
+    width: min(65vw, 280px);
+    height: min(65vw, 280px);
     background: linear-gradient(135deg, #fff, var(--pink));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+  @media (min-width: 900px) {
+    .photo-frame .initials {
+      width: 380px;
+      height: 380px;
+      font-size: 9rem;
+    }
   }
   @keyframes float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-14px) rotate(1deg); } }
 
@@ -408,7 +424,7 @@
   <div class="name">Prasanna Ponugoti</div>
   <div class="subtitle">Can you catch the button? It's a bit playful today... 💕</div>
   <button id="catchBtn" class="catch-btn">🎁 Click me, Prasanna!</button>
-  <div class="hint">hint: try to tap the button — it's playful! <span style="opacity:0.5">v5</span></div>
+  <div class="hint">hint: try to catch the button — it's playful! <span style="opacity:0.5">v6</span></div>
 </section>
 
 <section id="celebration" class="stage">
@@ -540,8 +556,11 @@ const DODGE_COOLDOWN = 300; // ms — prevents double-counts from
                             // mobile's touchstart + synthesized
                             // mousemove/click firing together
 
-const IS_TOUCH = ('ontouchstart' in window)
-              || (navigator.maxTouchPoints > 0);
+/* Previously disabled mousemove on touch devices, but many
+   laptops now report as touch-capable which killed the cursor
+   chase. Keep mousemove enabled everywhere — the 300ms debounce
+   already prevents duplicate counts from mobile's synthesized
+   events. */
 
 function randomPos() {
   const pad = 28;
@@ -588,18 +607,16 @@ function tryDodge() {
   return true;
 }
 
-/* Desktop only: button runs away as the cursor approaches.
-   Disabled on touch devices to avoid double-counting with taps. */
-if (!IS_TOUCH) {
-  document.addEventListener('mousemove', (e) => {
-    if (dodgeCount >= SURRENDER_AFTER - 1) return;
-    const r = btn.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top  + r.height / 2;
-    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-    if (dist < 130) tryDodge();
-  });
-}
+/* Button runs away as the cursor approaches — enabled on every
+   device that moves a mouse, including touch-capable laptops. */
+document.addEventListener('mousemove', (e) => {
+  if (dodgeCount >= SURRENDER_AFTER - 1) return;
+  const r = btn.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top  + r.height / 2;
+  const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+  if (dist < 140) tryDodge();
+});
 
 /* Mobile: near-miss tap anywhere in the page still counts as a
    dodge attempt, to keep the game fair on touch screens. */
