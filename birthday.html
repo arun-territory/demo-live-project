@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>Happy Birthday, Prasanna! 🎂</title>
-<!-- v3 flexible photo frame -->
+<!-- v4 mobile tap dodge + 5 click limit -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -510,7 +510,7 @@ document.addEventListener('mousemove', (e) => {
 });
 
 /* ---------- Progress dots ---------- */
-const SURRENDER_AFTER = 10;
+const SURRENDER_AFTER = 5;
 const dotsHost = document.getElementById('dots');
 for (let i = 0; i < SURRENDER_AFTER; i++) {
   const d = document.createElement('div');
@@ -530,12 +530,7 @@ const taunts = [
   "Nope! 😜",
   "Too slow, Prasanna! 💨",
   "Hehe, missed! 🙈",
-  "You can't catch me! 😆",
-  "So close... but no! 😏",
-  "Try harder, love! 💕",
-  "Haha nope! 🤭",
-  "Almost! Keep going! ✨",
-  "Nice try, beautiful! 😘",
+  "So close... almost! 😏",
   "Okay okay... fine! 🥺"
 ];
 
@@ -602,7 +597,22 @@ document.addEventListener('touchstart', (e) => {
   }
 }, { passive: true });
 
-btn.addEventListener('click', celebrate);
+/* Direct tap/click on the button: dodge until we've hit the
+   surrender count, then celebrate. This makes mobile work the
+   same way as desktop — every attempt counts, and the 5th wins. */
+btn.addEventListener('click', (e) => {
+  if (dodgeCount < SURRENDER_AFTER - 1) {
+    dodgeCount++;
+    refreshDots();
+    showTaunt();
+    moveButton();
+    return;
+  }
+  // Final tap — she caught it!
+  dodgeCount = SURRENDER_AFTER;
+  refreshDots();
+  celebrate();
+});
 
 /* ---------- Celebration ---------- */
 function celebrate() {
