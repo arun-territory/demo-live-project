@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Happy Birthday, Prasanna! 🎂</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Dancing+Script:wght@500;700&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; font-family: 'Poppins', sans-serif; }
+
+  body {
+    background: linear-gradient(-45deg, #ff9ec7, #c491ff, #ffd3a5, #ff9ec7, #a18cd1);
+    background-size: 400% 400%;
+    animation: gradientShift 18s ease infinite;
+    position: relative;
+  }
+
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Floating decorations */
+  .floaties { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+  .floaty {
+    position: absolute;
+    bottom: -60px;
+    font-size: 28px;
+    animation: rise linear infinite;
+    opacity: 0.9;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 0.9; }
+    90%  { opacity: 0.9; }
+    100% { transform: translateY(-110vh) translateX(40px) rotate(20deg); opacity: 0; }
+  }
+
+  /* Stage container */
+  .stage { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 2; }
+
+  /* Landing */
+  #landing { flex-direction: column; text-align: center; padding: 20px; }
+  .title {
+    font-family: 'Great Vibes', cursive;
+    font-size: clamp(3rem, 10vw, 7rem);
+    background: linear-gradient(90deg, #ff4d8d, #ffb347, #c86dd7, #ff4d8d);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite, bob 3s ease-in-out infinite;
+    text-shadow: 0 6px 30px rgba(255,255,255,0.4);
+    line-height: 1.1;
+  }
+  .name {
+    font-family: 'Dancing Script', cursive;
+    font-size: clamp(2rem, 7vw, 4.5rem);
+    color: #fff;
+    text-shadow: 0 4px 20px rgba(200,50,120,0.55), 0 0 40px rgba(255,255,255,0.35);
+    margin-top: 4px;
+    font-weight: 700;
+    animation: bob 3.5s ease-in-out infinite;
+  }
+  .subtitle {
+    margin-top: 18px;
+    color: #fff;
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    opacity: 0.92;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  @keyframes shimmer {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+
+  /* Catch me button */
+  .catch-btn {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 18px 38px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1rem, 2.3vw, 1.35rem);
+    color: #fff;
+    background: linear-gradient(135deg, #ff4d8d, #ff7ab6, #c86dd7);
+    background-size: 200% 200%;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(255, 77, 141, 0.45), 0 0 0 4px rgba(255,255,255,0.35) inset;
+    transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                top  0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.25s ease,
+                box-shadow 0.3s ease,
+                background-position 0.4s ease;
+    user-select: none;
+    white-space: nowrap;
+    z-index: 5;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .catch-btn:hover { background-position: 100% 50%; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 10px 30px rgba(255, 77, 141, 0.45), 0 0 0 4px rgba(255,255,255,0.35) inset; }
+    50%      { box-shadow: 0 14px 40px rgba(255, 77, 141, 0.7),  0 0 0 4px rgba(255,255,255,0.5)  inset; }
+  }
+
+  /* Taunt bubble */
+  .taunt {
+    position: absolute;
+    padding: 10px 16px;
+    background: #fff;
+    color: #d0337a;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.6);
+    animation: taunt-pop 1.4s ease forwards;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  @keyframes taunt-pop {
+    0%   { opacity: 0; transform: scale(0.4) translateY(10px); }
+    20%  { opacity: 1; transform: scale(1.1) translateY(-4px); }
+    40%  { transform: scale(1) translateY(0); }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(0.9) translateY(-20px); }
+  }
+
+  /* Celebration */
+  #celebration {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    inset: 0;
+    padding: 20px;
+    text-align: center;
+  }
+  #celebration.active { display: flex; animation: zoomIn 1s ease; }
+  @keyframes zoomIn {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .photo-frame {
+    width: clamp(160px, 28vw, 240px);
+    height: clamp(160px, 28vw, 240px);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fff1f8, #ffe2ef);
+    border: 6px solid #fff;
+    box-shadow: 0 20px 60px rgba(200, 50, 120, 0.45), 0 0 0 10px rgba(255,255,255,0.25);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    animation: float 3s ease-in-out infinite;
+    position: relative;
+  }
+  .photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .photo-frame .initials {
+    font-family: 'Dancing Script', cursive;
+    font-size: clamp(4rem, 10vw, 7rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, #ff4d8d, #c86dd7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%      { transform: translateY(-12px) rotate(1deg); }
+  }
+
+  .big-title {
+    font-family: 'Great Vibes', cursive;
+    font-size: clamp(3rem, 12vw, 8rem);
+    color: #fff;
+    text-shadow: 0 6px 30px rgba(200,50,120,0.7), 0 0 60px rgba(255,215,100,0.6);
+    line-height: 1;
+    animation: bob 3s ease-in-out infinite;
+  }
+  .big-name {
+    font-family: 'Dancing Script', cursive;
+    font-size: clamp(2.5rem, 9vw, 6rem);
+    background: linear-gradient(90deg, #fff1a8, #fff, #ffd1e6, #fff1a8);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .message {
+    margin-top: 22px;
+    max-width: 680px;
+    color: #fff;
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    line-height: 1.6;
+    font-weight: 500;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    padding: 0 16px;
+  }
+  .replay {
+    margin-top: 28px;
+    padding: 12px 28px;
+    border: 2px solid #fff;
+    color: #fff;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 1rem;
+    backdrop-filter: blur(8px);
+    transition: all 0.25s ease;
+  }
+  .replay:hover { background: #fff; color: #d0337a; transform: translateY(-2px); }
+
+  /* Cake */
+  .cake-wrap { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none; }
+  .cake { font-size: clamp(2.5rem, 6vw, 4rem); animation: bob 2.4s ease-in-out infinite; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.25)); }
+
+  /* Fireworks canvas */
+  #fireworks { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
+
+  /* Hint */
+  .hint { position: absolute; bottom: 18px; right: 24px; color: rgba(255,255,255,0.75); font-size: 0.8rem; font-weight: 500; z-index: 5; }
+</style>
+</head>
+<body>
+
+<div class="floaties" id="floaties"></div>
+
+<section id="landing" class="stage">
+  <div class="title">Happy Birthday</div>
+  <div class="name">Prasanna Ponugoti</div>
+  <div class="subtitle">Something magical is waiting... can you catch it? 💖</div>
+  <button id="catchBtn" class="catch-btn">🎁 Click me, Prasanna!</button>
+  <div class="hint">Tip: move your cursor close to the button 😉</div>
+</section>
+
+<section id="celebration" class="stage">
+  <div class="photo-frame">
+    <img id="prasannaImg" src="assets/prasanna.jpg" alt="Prasanna"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+    <div class="initials" style="display:none; width:100%; height:100%; align-items:center; justify-content:center;">PP</div>
+  </div>
+  <div class="big-title">Happy Birthday</div>
+  <div class="big-name">Prasanna 💕</div>
+  <p class="message">
+    On your special day, I just want you to know — you make every ordinary moment feel like a celebration.
+    Thank you for your laughter, your love, and for being the most beautiful part of my world.
+    Here's to another year of us, more adventures, and endless smiles. I love you, always. 🎂🌸
+  </p>
+  <button class="replay" onclick="replay()">🔄 Play again</button>
+</section>
+
+<div class="cake-wrap"><div class="cake">🎂</div></div>
+<canvas id="fireworks"></canvas>
+
+<script>
+/* ---------- Floating balloons/hearts ---------- */
+(function spawnFloaties() {
+  const emojis = ['🎈','💖','⭐','🌸','✨','🎀','💝','🧁'];
+  const host = document.getElementById('floaties');
+  for (let i = 0; i < 24; i++) {
+    const el = document.createElement('div');
+    el.className = 'floaty';
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.fontSize = (20 + Math.random() * 28) + 'px';
+    el.style.animationDuration = (10 + Math.random() * 14) + 's';
+    el.style.animationDelay = (Math.random() * 12) + 's';
+    host.appendChild(el);
+  }
+})();
+
+/* ---------- Dodging button ---------- */
+const btn = document.getElementById('catchBtn');
+const landing = document.getElementById('landing');
+
+const taunts = [
+  "Nope! 😜",
+  "Too slow, Prasanna! 🏃‍♀️💨",
+  "Hehe, missed! 🙈",
+  "You can't catch me! 😆",
+  "So close... but no! 😏",
+  "Try harder! 💕",
+  "Haha nope! 🤭",
+  "Almost! Keep going! ✨",
+  "Nice try, love! 😘",
+  "Okay okay, one more time! 🥺",
+  "Fine... I'll slow down! 😇",
+  "You win this round! 💖"
+];
+
+let dodgeCount = 0;
+const SURRENDER_AFTER = 7;
+
+function randomPos() {
+  const pad = 24;
+  const w = btn.offsetWidth;
+  const h = btn.offsetHeight;
+  const maxX = window.innerWidth  - w - pad * 2;
+  const maxY = window.innerHeight - h - pad * 2;
+  const x = pad + Math.random() * Math.max(0, maxX);
+  const y = pad + Math.random() * Math.max(0, maxY);
+  return { x, y };
+}
+
+function moveButton() {
+  const { x, y } = randomPos();
+  btn.style.transform = 'none';
+  btn.style.left = x + 'px';
+  btn.style.top  = y + 'px';
+}
+
+function showTaunt() {
+  const msg = taunts[Math.min(dodgeCount, taunts.length - 1)];
+  const t = document.createElement('div');
+  t.className = 'taunt';
+  t.textContent = msg;
+  const r = btn.getBoundingClientRect();
+  t.style.left = (r.left + r.width / 2) + 'px';
+  t.style.top  = (r.top - 14) + 'px';
+  t.style.transform = 'translate(-50%, -100%)';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1500);
+}
+
+/* Dodge when cursor approaches */
+document.addEventListener('mousemove', (e) => {
+  if (dodgeCount >= SURRENDER_AFTER) return;
+  const r = btn.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top  + r.height / 2;
+  const dx = e.clientX - cx;
+  const dy = e.clientY - cy;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 110) {
+    dodgeCount++;
+    showTaunt();
+    moveButton();
+  }
+});
+
+/* Dodge on mobile tap near button (touchstart on background) */
+document.addEventListener('touchstart', (e) => {
+  if (dodgeCount >= SURRENDER_AFTER) return;
+  if (e.target === btn) return;
+  const t = e.touches[0];
+  if (!t) return;
+  const r = btn.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top  + r.height / 2;
+  const dist = Math.hypot(t.clientX - cx, t.clientY - cy);
+  if (dist < 160) {
+    dodgeCount++;
+    showTaunt();
+    moveButton();
+  }
+}, { passive: true });
+
+btn.addEventListener('click', celebrate);
+
+/* ---------- Celebration ---------- */
+function celebrate() {
+  landing.style.display = 'none';
+  document.getElementById('celebration').classList.add('active');
+  fireConfettiBarrage();
+  startFireworks();
+}
+
+function fireConfettiBarrage() {
+  const duration = 6000;
+  const end = Date.now() + duration;
+  const colors = ['#ff4d8d','#ffd166','#c86dd7','#06d6a0','#ffffff','#ff7ab6'];
+  (function frame() {
+    confetti({
+      particleCount: 5,
+      angle: 60,
+      spread: 70,
+      origin: { x: 0, y: 0.7 },
+      colors
+    });
+    confetti({
+      particleCount: 5,
+      angle: 120,
+      spread: 70,
+      origin: { x: 1, y: 0.7 },
+      colors
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+  // Big opening burst
+  confetti({
+    particleCount: 180,
+    spread: 140,
+    startVelocity: 55,
+    origin: { x: 0.5, y: 0.55 },
+    colors
+  });
+}
+
+/* ---------- Fireworks ---------- */
+const fw = document.getElementById('fireworks');
+const ctx = fw.getContext('2d');
+let fwRunning = false;
+let particles = [];
+
+function sizeCanvas() {
+  fw.width  = window.innerWidth;
+  fw.height = window.innerHeight;
+}
+sizeCanvas();
+window.addEventListener('resize', sizeCanvas);
+
+function launchFirework() {
+  const x = fw.width  * (0.15 + Math.random() * 0.7);
+  const y = fw.height * (0.2  + Math.random() * 0.35);
+  const hue = Math.floor(Math.random() * 360);
+  const count = 70;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2) * (i / count);
+    const speed = 2 + Math.random() * 3.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      color: `hsl(${hue + Math.random() * 40}, 100%, 65%)`
+    });
+  }
+}
+
+function tickFireworks() {
+  if (!fwRunning) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(0, 0, fw.width, fw.height);
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.04;
+    p.vx *= 0.99;
+    p.life -= 0.012;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  particles = particles.filter(p => p.life > 0);
+  requestAnimationFrame(tickFireworks);
+}
+
+function startFireworks() {
+  fwRunning = true;
+  tickFireworks();
+  const iv = setInterval(launchFirework, 700);
+  // Keep launching for 12s, then slow down
+  setTimeout(() => clearInterval(iv), 12000);
+  launchFirework();
+}
+
+/* ---------- Replay ---------- */
+function replay() {
+  dodgeCount = 0;
+  particles = [];
+  ctx.clearRect(0, 0, fw.width, fw.height);
+  fwRunning = false;
+  document.getElementById('celebration').classList.remove('active');
+  landing.style.display = 'flex';
+  // Reset button to center
+  btn.style.left = '50%';
+  btn.style.top  = '60%';
+  btn.style.transform = 'translate(-50%, -50%)';
+}
+</script>
+</body>
+</html>
