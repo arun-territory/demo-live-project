@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fintech
+      POSTGRES_PASSWORD: fintech
+      POSTGRES_DB: fintech
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fintech -d fintech"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  account-service:
+    build: ./account-service
+    environment:
+      PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: fintech
+      DB_PASSWORD: fintech
+      DB_NAME: fintech
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  transaction-service:
+    build: ./transaction-service
+    environment:
+      PORT: "8080"
+      ACCOUNT_SERVICE_URL: http://account-service:8080
+      NOTIFICATION_URL: http://notification-service:8080/events
+    depends_on:
+      - account-service
+      - notification-service
+    ports:
+      - "8082:8080"
+
+  notification-service:
+    build: ./notification-service
+    environment:
+      PORT: "8080"
+    ports:
+      - "8083:8080"
+
+  api-gateway:
+    build: ./api-gateway
+    environment:
+      PORT: "8080"
+      JWT_SECRET: dev-secret-change-me
+      ACCOUNT_SERVICE_URL: http://account-service:8080
+      TRANSACTION_SERVICE_URL: http://transaction-service:8080
+    depends_on:
+      - account-service
+      - transaction-service
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:8080"
+
+volumes:
+  pgdata:
