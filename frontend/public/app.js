@@ -33,22 +33,35 @@ async function call(path, opts = {}) {
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
-    const data = await fetch('/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email: $('email').value }),
-    }).then((r) => r.json());
+    });
+    const data = await res.json();
+    if (!res.ok || !data.token) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
     token = data.token;
     sessionStorage.setItem('token', token);
     setAuthStatus();
-    log(`signed in, token expires in ${data.expires_in_seconds}s`);
+    log(`signed in as ${$('email').value}, token expires in ${data.expires_in_seconds}s`);
   } catch (err) {
     log(`login failed: ${err.message}`);
   }
 });
 
+function requireToken() {
+  if (!token) {
+    log('not signed in — click "Get token" in step 1 first');
+    return false;
+  }
+  return true;
+}
+
 $('create-account-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!requireToken()) return;
   try {
     const data = await call('/accounts', {
       method: 'POST',
@@ -65,6 +78,7 @@ $('create-account-form').addEventListener('submit', async (e) => {
 });
 
 async function refreshAccounts() {
+  if (!requireToken()) return;
   try {
     const accounts = await call('/accounts');
     const tbody = $('accounts-table').querySelector('tbody');
@@ -82,6 +96,7 @@ $('refresh-accounts').addEventListener('click', refreshAccounts);
 
 $('transfer-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!requireToken()) return;
   try {
     const data = await call('/transactions/transfer', {
       method: 'POST',
@@ -100,6 +115,7 @@ $('transfer-form').addEventListener('submit', async (e) => {
 
 $('deposit-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!requireToken()) return;
   try {
     const data = await call('/transactions/deposit', {
       method: 'POST',
