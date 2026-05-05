@@ -15,7 +15,7 @@ app.get('/readyz', (_req, res) => res.json({ status: 'ready' }));
 
 // Demo login. Real impl would verify credentials against an IdP.
 // Body: { email }
-app.post('/auth/login', (req, res) => {
+app.post('/api/auth/login', (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email required' });
   const token = issueToken({ sub: email });
