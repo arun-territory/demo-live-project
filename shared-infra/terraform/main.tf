@@ -69,14 +69,7 @@ module "platform" {
   depends_on = [module.node_pools]
 }
 
-module "rag" {
-  source = "./modules/rag"
-  count  = var.enable_rag ? 1 : 0
-
-  project_id                    = var.project_id
-  region                        = var.region
-  labels                        = local.common_labels
-  snapshot_retention_days       = var.qdrant_snapshot_retention_days
-  force_destroy_buckets         = var.rag_force_destroy_buckets
-  enable_event_driven_ingestion = var.enable_event_driven_ingestion
-}
+# Note: Project 3 (RAG) infrastructure (GCS buckets, IAM, service accounts)
+# is a SEPARATE terraform stack in ../../project-3-rag/terraform/.
+# It does not need to be deployed at the same time as this one. Apply it
+# only when you're ready to add the RAG project on top of the cluster.

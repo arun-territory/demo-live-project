@@ -46,14 +46,22 @@ else
   echo "    bucket exists, skipping"
 fi
 
-echo "==> Patching terraform/backend.tf..."
-sed -i.bak "s|REPLACE-ME-tfstate|${BUCKET}|g" terraform/backend.tf
-rm -f terraform/backend.tf.bak
+echo "==> Patching backend.tf files for both terraform stacks..."
+for f in shared-infra/terraform/backend.tf project-3-rag/terraform/backend.tf; do
+  if [[ -f "$f" ]]; then
+    sed -i.bak "s|REPLACE-ME-tfstate|${BUCKET}|g" "$f"
+    rm -f "${f}.bak"
+    echo "    patched $f"
+  fi
+done
 
 echo
 echo "==> L4 GPU quota request:"
 echo "    https://console.cloud.google.com/iam-admin/quotas?project=${PROJECT_ID}"
 echo "    Filter: 'NVIDIA L4 GPUs' for region '${REGION}'. Request at least 1."
 echo
-echo "==> Done. Next: cp terraform/terraform.tfvars.example terraform/terraform.tfvars"
-echo "             then 'make apply'"
+echo "==> Done. Next step:"
+echo "    cd shared-infra"
+echo "    cp terraform/terraform.tfvars.example terraform/terraform.tfvars"
+echo "    \$EDITOR terraform/terraform.tfvars"
+echo "    make apply"

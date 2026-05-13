@@ -7,6 +7,6 @@
 terraform {
   backend "gcs" {
     bucket = "REPLACE-ME-tfstate"
-    prefix = "genai-inference"
+    prefix = "shared-infra"
   }
 }

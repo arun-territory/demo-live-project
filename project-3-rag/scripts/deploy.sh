@@ -40,6 +40,8 @@ apply_dir kubernetes/rag
 kubectl -n rag rollout status deployment/embeddings --timeout=5m
 kubectl -n rag rollout status deployment/query-api --timeout=5m
 
+apply_dir kubernetes/observability
+
 echo
 echo "==> RAG tier ready."
 echo "    Endpoint:    https://${RAG_HOSTNAME}/query"

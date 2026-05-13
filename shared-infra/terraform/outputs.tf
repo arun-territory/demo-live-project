@@ -27,15 +27,3 @@ output "configure_kubectl" {
   description = "Run this to point kubectl at the new cluster."
   value       = "gcloud container clusters get-credentials ${module.gke.cluster_name} --region=${var.region} --project=${var.project_id}"
 }
-
-# ── RAG ──────────────────────────────────────────────────────────────────────
-
-output "rag_docs_bucket" {
-  value       = var.enable_rag ? module.rag[0].docs_bucket : ""
-  description = "Upload documents here for ingestion."
-}
-
-output "rag_snapshots_bucket" {
-  value       = var.enable_rag ? module.rag[0].snapshots_bucket : ""
-  description = "Qdrant snapshot bucket."
-}

@@ -3,12 +3,14 @@ name: terraform
 on:
   pull_request:
     paths:
-      - "terraform/**"
+      - "shared-infra/terraform/**"
+      - "project-3-rag/terraform/**"
       - ".github/workflows/terraform.yml"
   push:
     branches: [main]
     paths:
-      - "terraform/**"
+      - "shared-infra/terraform/**"
+      - "project-3-rag/terraform/**"
 
 permissions:
   contents: read
@@ -22,7 +24,12 @@ env:
 jobs:
   plan:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: terraform } }
+    strategy:
+      matrix:
+        stack:
+          - shared-infra/terraform
+          - project-3-rag/terraform
+    defaults: { run: { working-directory: "${{ matrix.stack }}" } }
     steps:
       - uses: actions/checkout@v4
 
@@ -48,11 +55,11 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('terraform/tfplan', 'utf8').slice(0, 60_000);
+            const plan = fs.readFileSync('${{ matrix.stack }}/tfplan', 'utf8').slice(0, 60_000);
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: context.issue.number,
-              body: '<details><summary>terraform plan</summary>\n\n```\n' + plan + '\n```\n</details>'
+              body: '<details><summary>terraform plan — ${{ matrix.stack }}</summary>\n\n```\n' + plan + '\n```\n</details>'
             });
 
       - if: steps.plan.outcome == 'failure'
@@ -63,7 +70,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production    # requires manual approval in GH env config
-    defaults: { run: { working-directory: terraform } }
+    strategy:
+      matrix:
+        stack:
+          - shared-infra/terraform
+          - project-3-rag/terraform
+    defaults: { run: { working-directory: "${{ matrix.stack }}" } }
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
