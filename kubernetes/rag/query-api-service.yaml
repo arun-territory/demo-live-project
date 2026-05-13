@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: query-api
+  namespace: rag
+  labels:
+    app: query-api
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: ClusterIP
+  selector:
+    app: query-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+    - name: metrics
+      port: 9100
+      targetPort: 9100

@@ -1,0 +1,118 @@
+# Query API — the RAG orchestrator.
+# Flow per request:
+#   1. Validate inbound API key (from rag-api-keys Secret, ESO-synced)
+#   2. Embed the user query via embeddings service
+#   3. Vector search Qdrant (top-K, optional filters)
+#   4. Build a prompt from retrieved chunks
+#   5. POST to the vLLM gateway with the upstream API key
+#   6. Return answer + citations
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: query-api
+  namespace: rag
+  labels:
+    app: query-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: query-api
+  template:
+    metadata:
+      labels:
+        app: query-api
+    spec:
+      serviceAccountName: rag-runtime
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        pool: cpu
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: query-api
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: query-api
+          image: REGISTRY/query-api:0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8080"
+            - name: METRICS_PORT
+              value: "9100"
+            - name: API_KEYS_FILE
+              value: "/etc/api-keys/keys"
+            - name: EMBEDDINGS_URL
+              value: "http://embeddings.rag.svc.cluster.local"
+            - name: QDRANT_URL
+              value: "http://qdrant.qdrant.svc.cluster.local:6333"
+            - name: QDRANT_COLLECTION
+              value: "documents"
+            - name: VLLM_GATEWAY_URL
+              value: "http://apikey-gateway.gateway.svc.cluster.local"
+            - name: VLLM_MODEL
+              value: "google/gemma-2-9b-it"
+            - name: TOP_K
+              value: "5"
+            - name: QDRANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: qdrant-api-key
+                  key: api-key
+            - name: VLLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vllm-upstream-key
+                  key: api-key
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9100
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: api-keys
+              mountPath: /etc/api-keys
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: api-keys
+          secret:
+            secretName: rag-api-keys
+            defaultMode: 0400
+        - name: tmp
+          emptyDir:
+            sizeLimit: 50Mi

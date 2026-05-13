@@ -68,3 +68,15 @@ module "platform" {
 
   depends_on = [module.node_pools]
 }
+
+module "rag" {
+  source = "./modules/rag"
+  count  = var.enable_rag ? 1 : 0
+
+  project_id                    = var.project_id
+  region                        = var.region
+  labels                        = local.common_labels
+  snapshot_retention_days       = var.qdrant_snapshot_retention_days
+  force_destroy_buckets         = var.rag_force_destroy_buckets
+  enable_event_driven_ingestion = var.enable_event_driven_ingestion
+}

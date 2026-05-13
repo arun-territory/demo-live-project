@@ -1,6 +1,15 @@
-# Private GenAI Inference Platform on GKE
+# Private GenAI Inference + RAG Platform on GKE
 
-> Self-hosted, OpenAI-compatible LLM API on Google Kubernetes Engine. Private VPC, GPU autoscaling to zero, full observability, enterprise security controls. One `make apply` from zero to a running endpoint.
+> Self-hosted, OpenAI-compatible LLM API **plus** a production RAG pipeline on the same GKE cluster. Private VPC, GPU autoscaling to zero, Qdrant with HA + automated ingestion + citations, full observability, enterprise security controls. One `make apply` + `make deploy` from zero to a running endpoint.
+
+This repo ships **two integrated projects** that share a cluster, VPC, observability stack, and IAM model:
+
+| | Project 1 — Inference | Project 3 — RAG |
+|---|---|---|
+| **What** | OpenAI-compatible vLLM endpoint | Document QA with citations |
+| **Entry point** | `POST /v1/chat/completions` | `POST /query` |
+| **Components** | vLLM, API-key gateway | Qdrant (3× HA), embeddings, query-api, ingestion |
+| **Docs** | [`docs/architecture.md`](docs/architecture.md) | [`docs/rag.md`](docs/rag.md) |
 
 ## The problem this solves
 
@@ -48,6 +57,10 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram and desi
 | **Cost controls** | Spot GPU nodes, scheduled scale-to-zero CronJob, billing alerts (instructions in `docs/cost.md`) |
 | **IaC** | Modular Terraform with GCS-backed state, GitHub Actions plan-on-PR / apply-on-main |
 | **Teardown** | `make destroy` — one command, billing-safe by default |
+| **RAG vector DB** | Qdrant 3-replica StatefulSet with Raft, anti-affinity, PDB, regional SSD, 6h snapshot to GCS |
+| **RAG embeddings** | `all-MiniLM-L6-v2` on CPU pool, HPA 2→6, 384-dim |
+| **RAG ingestion** | CronJob every 5m: GCS → chunk(1000/200) → embed → Qdrant upsert, idempotent via deterministic point IDs |
+| **RAG query API** | FastAPI orchestrator: auth → embed → retrieve → prompt → vLLM → answer + citations |
 
 ## Quickstart
 
@@ -94,6 +107,26 @@ resp = client.chat.completions.create(
 print(resp.choices[0].message.content)
 ```
 
+### Calling the RAG endpoint
+
+```bash
+# Upload a document
+gsutil cp policy.pdf gs://${PROJECT_ID}-rag-docs/
+
+# Wait for the next ingestion CronJob (or trigger immediately):
+kubectl -n rag create job --from=cronjob/ingestion ingest-now
+
+# Ask a question
+curl -sX POST https://rag.internal.example.com/query \
+  -H "X-API-Key: <rag-key-from-secret-manager>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is the data retention policy?", "top_k": 5}' | jq
+# {
+#   "answer": "Data is retained for 7 years [1][2]...",
+#   "citations": [{"source": "policy.pdf", "chunk_index": 3, ...}]
+# }
+```
+
 ### Tearing it down (billing safety)
 
 ```bash
@@ -105,12 +138,22 @@ Tears down node pools first (stops GPU billing fastest), then cluster, then netw
 ## Repo layout
 
 ```
-terraform/         # Modular IaC: network, gke, node-pools, platform (Helm releases)
-kubernetes/        # vLLM workload, gateway, observability, cost-controls
-docker/            # API-key gateway image
-scripts/           # bootstrap, deploy, teardown, smoke-test, load-test
-docs/              # architecture, security, cost, runbook
-tests/integration/ # OpenAI-SDK e2e + network policy enforcement tests
+terraform/         # Modular IaC: network, gke, node-pools, platform, rag (buckets + IAM)
+kubernetes/
+  ├── vllm/         # Project 1 — inference workload
+  ├── gateway/      # Project 1 — API-key gateway + ingress + TLS
+  ├── qdrant/       # Project 3 — vector DB (StatefulSet, backup, NetworkPolicy)
+  ├── rag/          # Project 3 — embeddings, query-api, ingestion CronJob
+  ├── observability/# ServiceMonitors + alerts for both projects
+  └── cost-controls/# Scheduled GPU scale-to-zero
+docker/
+  ├── apikey-gateway/  # Project 1
+  ├── embeddings/      # Project 3
+  ├── query-api/       # Project 3
+  └── ingestion/       # Project 3
+scripts/           # bootstrap, deploy, deploy-rag, teardown, smoke-test, load-test
+docs/              # architecture, rag, security, cost, runbook, diagrams
+tests/integration/ # gateway + query-api unit tests + network policy enforcement
 .github/workflows/ # terraform plan/apply, lint
 ```
 
@@ -126,8 +169,9 @@ tests/integration/ # OpenAI-SDK e2e + network policy enforcement tests
 
 ## Roadmap
 
-- **Phase 2** (this repo, next): Private RAG platform — Qdrant + automated GCS-triggered ingestion + retrieval API on the same GKE cluster.
+- ~~**Phase 2**: Private RAG platform~~ — **shipped** in this repo. See `docs/rag.md`.
 - **Phase 3**: Multi-tenant model routing, per-tenant quotas, OpenTelemetry traces across embed → retrieve → generate.
+- **Phase 4**: LoRA adapter swapping per tenant, speculative decoding, multi-region failover.
 
 ## License
 

@@ -20,11 +20,18 @@ jobs:
 
   hadolint:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dockerfile:
+          - docker/apikey-gateway/Dockerfile
+          - docker/embeddings/Dockerfile
+          - docker/query-api/Dockerfile
+          - docker/ingestion/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: docker/apikey-gateway/Dockerfile
+          dockerfile: ${{ matrix.dockerfile }}
 
   kubeval:
     runs-on: ubuntu-latest
@@ -71,3 +78,14 @@ jobs:
       - run: pip install -r requirements.txt pytest pytest-asyncio ruff
       - run: ruff check .
       - run: pytest -q ../../tests/integration/test_gateway.py
+
+  query-api-tests:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: docker/query-api } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: 'pip', cache-dependency-path: 'docker/query-api/requirements.txt' }
+      - run: pip install -r requirements.txt pytest pytest-asyncio ruff
+      - run: ruff check .
+      - run: pytest -q ../../tests/integration/test_query_api.py

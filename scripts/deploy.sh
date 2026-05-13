@@ -44,7 +44,26 @@ kubectl -n vllm rollout status deployment/vllm --timeout=15m
 echo "==> Gateway:"
 kubectl -n gateway rollout status deployment/apikey-gateway --timeout=5m
 
+# ── Project 3 (RAG) ─────────────────────────────────────────────────────────
+if [[ "${DEPLOY_RAG:-true}" == "true" ]]; then
+  echo "==> Deploying RAG tier (Qdrant + embeddings + query-api + ingestion)"
+  apply_dir kubernetes/qdrant
+  echo "==> Waiting for Qdrant cluster..."
+  kubectl -n qdrant rollout status statefulset/qdrant --timeout=10m
+
+  apply_dir kubernetes/rag
+  echo "==> Waiting for RAG services..."
+  kubectl -n rag rollout status deployment/embeddings --timeout=5m
+  kubectl -n rag rollout status deployment/query-api --timeout=5m
+fi
+
 echo
-echo "==> Deployment complete. Endpoint:"
-echo "    https://${INFERENCE_HOSTNAME}/v1/chat/completions"
-echo "    (header: X-API-Key: <one of the keys in Secret Manager:vllm-api-keys>)"
+echo "==> Deployment complete."
+echo "    LLM endpoint:  https://${INFERENCE_HOSTNAME}/v1/chat/completions"
+echo "                   (header: X-API-Key: <key from Secret Manager:vllm-api-keys>)"
+if [[ "${DEPLOY_RAG:-true}" == "true" ]]; then
+  RAG_HOSTNAME="${RAG_HOSTNAME:-rag.internal.example.com}"
+  echo "    RAG endpoint:  https://${RAG_HOSTNAME}/query"
+  echo "                   (header: X-API-Key: <key from Secret Manager:rag-api-keys>)"
+  echo "    Upload docs:   gsutil cp file.pdf gs://${PROJECT_ID}-rag-docs/"
+fi

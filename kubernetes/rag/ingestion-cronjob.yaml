@@ -1,0 +1,82 @@
+# Document ingestion — scans GCS bucket every 5 minutes for new files.
+#
+# The job is idempotent: each chunk's point ID is a deterministic hash of
+# (gcs_path, chunk_index), so re-runs upsert and never duplicate.
+#
+# State (last-processed offset per file) is tracked in a separate Qdrant
+# collection: "ingestion_state". On a fresh bucket all files are picked up.
+#
+# Why a CronJob and not Eventarc?
+#   - Eventarc → GKE-destination is the cleaner production path but adds
+#     Pub/Sub, IAM, and an extra serving Deployment. The CronJob handles
+#     bulk backfill, missed events, and re-ingestion uniformly with no
+#     extra infra. The Terraform module also provisions the GCS bucket
+#     with notifications, so you can swap to event-driven later.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ingestion
+  namespace: rag
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800   # 30 min hard stop
+      template:
+        spec:
+          serviceAccountName: rag-ingestion
+          restartPolicy: OnFailure
+          nodeSelector:
+            pool: cpu
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: ingestion
+              image: REGISTRY/ingestion:0.1.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: DOCS_BUCKET
+                  value: "PROJECT_ID-rag-docs"
+                - name: EMBEDDINGS_URL
+                  value: "http://embeddings.rag.svc.cluster.local"
+                - name: QDRANT_URL
+                  value: "http://qdrant.qdrant.svc.cluster.local:6333"
+                - name: QDRANT_COLLECTION
+                  value: "documents"
+                - name: CHUNK_SIZE
+                  value: "1000"
+                - name: CHUNK_OVERLAP
+                  value: "200"
+                - name: EMBED_DIM
+                  value: "384"
+                - name: QDRANT_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: qdrant-api-key
+                      key: api-key
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "1"
+                  memory: "1Gi"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 1Gi

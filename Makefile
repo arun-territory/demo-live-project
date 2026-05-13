@@ -48,6 +48,8 @@ destroy: ## DESTROY everything — node pools first (stop GPU billing fastest)
 	@echo ">>> Scaling GPU node pool to zero first to stop billing..."
 	-gcloud container node-pools resize gpu-pool \
 		--cluster=$(CLUSTER_NAME) --region=$(REGION) --num-nodes=0 --quiet || true
+	@echo ">>> Deleting RAG PVCs so the StorageClass disks go too..."
+	-kubectl delete pvc -n qdrant --all --timeout=2m || true
 	cd $(TF_DIR) && terraform destroy -auto-approve
 
 .PHONY: kubeconfig
@@ -58,15 +60,29 @@ kubeconfig: ## Refresh local kubeconfig
 # ── Workload deployment ──────────────────────────────────────────────────────
 
 .PHONY: deploy
-deploy: ## Apply all Kubernetes manifests in correct order
+deploy: ## Apply all Kubernetes manifests in correct order (inference + RAG)
 	./scripts/deploy.sh
+
+.PHONY: deploy-inference
+deploy-inference: ## Deploy only Project 1 (vLLM + gateway, no RAG)
+	DEPLOY_RAG=false ./scripts/deploy.sh
+
+.PHONY: deploy-rag
+deploy-rag: ## Deploy only Project 3 (Qdrant + RAG services), assumes inference already up
+	./scripts/deploy-rag.sh
 
 .PHONY: undeploy
 undeploy: ## Delete workload (keep platform / cluster)
 	-kubectl delete -f $(K8S_DIR)/cost-controls/
 	-kubectl delete -f $(K8S_DIR)/observability/
+	-kubectl delete -f $(K8S_DIR)/rag/
+	-kubectl delete -f $(K8S_DIR)/qdrant/
 	-kubectl delete -f $(K8S_DIR)/gateway/
 	-kubectl delete -f $(K8S_DIR)/vllm/
+
+.PHONY: rag-smoke-test
+rag-smoke-test: ## End-to-end RAG: upload sample doc, ingest, query
+	./scripts/rag-smoke-test.sh
 
 # ── Testing ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +116,9 @@ lint-yaml:
 .PHONY: lint-docker
 lint-docker:
 	hadolint docker/apikey-gateway/Dockerfile || true
+	hadolint docker/embeddings/Dockerfile      || true
+	hadolint docker/query-api/Dockerfile       || true
+	hadolint docker/ingestion/Dockerfile       || true
 
 # ── Bootstrap ────────────────────────────────────────────────────────────────
 

@@ -141,3 +141,29 @@ variable "enable_prometheus_adapter" {
   type        = bool
   default     = true
 }
+
+# ── Project 3: RAG ───────────────────────────────────────────────────────────
+
+variable "enable_rag" {
+  description = "Provision RAG-tier resources (GCS buckets, IAM/SAs for Qdrant + RAG services)."
+  type        = bool
+  default     = true
+}
+
+variable "qdrant_snapshot_retention_days" {
+  description = "Days to retain Qdrant snapshots in the snapshots bucket."
+  type        = number
+  default     = 30
+}
+
+variable "rag_force_destroy_buckets" {
+  description = "Allow `terraform destroy` to delete non-empty RAG buckets. Dev-only."
+  type        = bool
+  default     = false
+}
+
+variable "enable_event_driven_ingestion" {
+  description = "Provision GCS->Pub/Sub notification for event-driven ingestion. CronJob ingestion works without this."
+  type        = bool
+  default     = false
+}

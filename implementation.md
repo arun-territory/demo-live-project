@@ -411,7 +411,117 @@ Checks:
 
 ---
 
-## Step 16 — Set up TLS / internal hostname (production)
+## Step 16 — Deploy Project 3 (RAG)
+
+Project 3 deploys onto the same cluster. Project 1 must be running first.
+
+### 16a. Create Qdrant + RAG secrets in Secret Manager
+
+```bash
+# Qdrant API key (used by Qdrant server and all RAG clients)
+openssl rand -hex 32 | gcloud secrets create qdrant-api-key --data-file=-
+
+# RAG API keys (end-user keys for the /query endpoint)
+cat > /tmp/rag-keys.txt <<EOF
+rag-strong-key-1
+rag-strong-key-2
+EOF
+gcloud secrets create rag-api-keys --data-file=/tmp/rag-keys.txt
+rm /tmp/rag-keys.txt
+```
+
+### 16b. Re-apply Terraform to create RAG buckets + IAM
+
+```bash
+# RAG is enabled by default (enable_rag = true in variables.tf)
+make apply
+```
+
+This creates:
+- `gs://${PROJECT_ID}-rag-docs` — documents go here
+- `gs://${PROJECT_ID}-qdrant-snapshots` — Qdrant backups (30-day lifecycle)
+- 4 GCP service accounts with Workload Identity bindings already in place
+
+### 16c. Build and push the three new images
+
+```bash
+export REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/vllm-platform"
+
+docker build -t ${REGISTRY}/embeddings:0.1.0 docker/embeddings/
+docker push ${REGISTRY}/embeddings:0.1.0
+
+docker build -t ${REGISTRY}/query-api:0.1.0 docker/query-api/
+docker push ${REGISTRY}/query-api:0.1.0
+
+docker build -t ${REGISTRY}/ingestion:0.1.0 docker/ingestion/
+docker push ${REGISTRY}/ingestion:0.1.0
+```
+
+### 16d. Deploy the RAG tier
+
+```bash
+make deploy-rag
+
+# Watch the rollouts
+kubectl -n qdrant get pods -w     # 3 replicas, qdrant-0/1/2
+kubectl -n rag get pods -w        # embeddings, query-api, eventual ingestion jobs
+```
+
+### 16e. Upload a document and query
+
+```bash
+# Drop a PDF into the bucket
+gsutil cp ~/Downloads/sample.pdf gs://${PROJECT_ID}-rag-docs/
+
+# Trigger ingestion immediately (or wait for the 5-min CronJob)
+kubectl -n rag create job --from=cronjob/ingestion ingest-now
+kubectl -n rag logs job/ingest-now -f
+
+# Query via port-forward
+kubectl -n rag port-forward svc/query-api 18080:80 &
+curl -sX POST http://localhost:18080/query \
+  -H "X-API-Key: rag-strong-key-1" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Summarize the main points"}' | jq
+```
+
+### 16f. End-to-end smoke test
+
+```bash
+export RAG_API_KEY="rag-strong-key-1"
+make rag-smoke-test
+```
+
+Uploads a synthetic doc, ingests it, queries, asserts the answer cites it.
+
+### 16g. Verify Qdrant HA
+
+```bash
+# Should see qdrant-0, qdrant-1, qdrant-2 all Running
+kubectl -n qdrant get pods
+
+# PDB requires 2 of 3 to remain available
+kubectl -n qdrant get pdb
+
+# Backup CronJob exists and schedule is correct
+kubectl -n qdrant get cronjobs
+```
+
+### 16h. Verify the RAG observability stack
+
+```bash
+# ServiceMonitors registered
+kubectl -n monitoring get servicemonitor query-api embeddings
+
+# Alerts loaded
+kubectl -n monitoring get prometheusrule rag-rules
+
+# In Grafana → Explore → query: rag:query_latency_p99
+```
+
+---
+
+## Step 17 — Set up TLS / internal hostname (production)
 
 For a real deployment inside a VPC, update the ingress hostname:
 

@@ -1,0 +1,51 @@
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: rag-frontend
+  namespace: rag
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: query-api
+  namespace: rag
+  annotations:
+    kubernetes.io/ingress.class: "gce-internal"
+    cert-manager.io/cluster-issuer: "letsencrypt-dns01"
+    networking.gke.io/v1beta1.FrontendConfig: "rag-frontend"
+spec:
+  tls:
+    - hosts:
+        - rag.internal.example.com
+      secretName: rag-tls
+  rules:
+    - host: rag.internal.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: query-api
+                port:
+                  number: 80
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rag-tls
+  namespace: rag
+spec:
+  secretName: rag-tls
+  issuerRef:
+    name: letsencrypt-dns01
+    kind: ClusterIssuer
+  duration: 2160h        # 90d
+  renewBefore: 720h      # 30d
+  commonName: rag.internal.example.com
+  dnsNames:
+    - rag.internal.example.com

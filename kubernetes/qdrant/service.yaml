@@ -1,0 +1,43 @@
+# Headless service for peer discovery (StatefulSet stable DNS).
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-headless
+  namespace: qdrant
+  labels:
+    app: qdrant
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: qdrant
+  ports:
+    - name: http
+      port: 6333
+      targetPort: 6333
+    - name: grpc
+      port: 6334
+      targetPort: 6334
+    - name: p2p
+      port: 6335
+      targetPort: 6335
+---
+# Client-facing ClusterIP. Any pod gets a healthy member.
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant
+  namespace: qdrant
+  labels:
+    app: qdrant
+spec:
+  type: ClusterIP
+  selector:
+    app: qdrant
+  ports:
+    - name: http
+      port: 6333
+      targetPort: 6333
+    - name: grpc
+      port: 6334
+      targetPort: 6334

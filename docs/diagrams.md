@@ -12,6 +12,7 @@ Contents:
 7. [Observability flow](#7-observability-flow)
 8. [Cost-control flow](#8-cost-control-flow)
 9. [Security boundaries](#9-security-boundaries)
+10. [RAG flow (Project 3)](#10-rag-flow-project-3)
 
 ---
 
@@ -576,3 +577,160 @@ Layered defense — what stops what:
 | `kubernetes/cost-controls/*` | Scheduled scale-to-zero |
 | `docker/apikey-gateway/main.py` | Layer 2 authentication |
 | `.github/workflows/*` | CI/CD pipeline (Section 6) |
+| `kubernetes/qdrant/*` | RAG vector DB tier (Section 10) |
+| `kubernetes/rag/*` | RAG embeddings + query-api + ingestion (Section 10) |
+| `docker/{embeddings,query-api,ingestion}/*` | RAG service code |
+| `terraform/modules/rag/*` | RAG buckets + IAM + Workload Identity |
+
+---
+
+## 10. RAG flow (Project 3)
+
+### 10a. Ingestion (every 5 minutes via CronJob)
+
+```
+   User
+    │  gsutil cp file.pdf gs://*-rag-docs/
+    ▼
+   ┌──────────────────────┐
+   │ gs://${PROJECT_ID}   │
+   │   -rag-docs/         │
+   │   - file.pdf         │
+   │   - notes.md         │
+   │   - manual.txt       │
+   └──────────┬───────────┘
+              │
+              │  CronJob fires every */5 minutes
+              ▼
+   ┌──────────────────────────────────────────────┐
+   │  ingestion Job (rag namespace)               │
+   │                                              │
+   │  1. List GCS objects                         │
+   │  2. For each (.txt/.md/.pdf):                │
+   │     a. md5 = blob.md5_hash                   │
+   │     b. lookup ingestion_state[source]        │
+   │     c. if same md5 → SKIP (idempotent)       │
+   │     d. download bytes                        │
+   │     e. extract text (pypdf for PDF)          │
+   │     f. chunk: 1000-char / 200-char overlap   │
+   │     g. embed batch via embeddings svc        │
+   │     h. upsert to Qdrant.documents            │
+   │        point_id = UUID(md5(source+idx))      │
+   │     i. record ingestion_state[source]=md5    │
+   └──────────┬───────────────────────────────────┘
+              │
+              ▼  bulk upsert
+   ┌──────────────────────────┐
+   │  Qdrant (qdrant ns)      │
+   │   3-replica StatefulSet  │
+   │   Raft consensus         │
+   │   - documents collection │
+   │   - ingestion_state coll │
+   └──────────────────────────┘
+```
+
+### 10b. Query (per user request)
+
+```
+   Client
+    │  POST /query  X-API-Key: ...
+    │  {"query": "What's the data retention policy?", "top_k": 5}
+    ▼
+   ┌──────────────────────┐
+   │ Internal LB (gce)    │  TLS terminate, route to query-api
+   └──────────┬───────────┘
+              ▼
+   ┌──────────────────────────────────────────────────────────┐
+   │  query-api  (rag ns, 2 replicas + HPA)                   │
+   │                                                          │
+   │  1. validate X-API-Key against rag-api-keys              │
+   │     (file mounted from ESO, re-read every check)         │
+   │                                                          │
+   │  2. embed:    POST embeddings.rag:80/embed  [query]      │
+   │               ─────► returns 384-dim vector              │
+   │                                                          │
+   │  3. retrieve: POST qdrant.qdrant:6333/.../points/search  │
+   │               ─────► top-5 chunks + scores + payload     │
+   │                                                          │
+   │  4. build prompt:                                        │
+   │       """Answer using ONLY the context below.            │
+   │       Cite sources inline as [n].                        │
+   │       Context:                                           │
+   │       [1] (from policy.pdf, chunk 3) ...                 │
+   │       [2] (from policy.pdf, chunk 4) ...                 │
+   │       ...                                                │
+   │       Question: ...                                      │
+   │       Answer:"""                                         │
+   │                                                          │
+   │  5. generate: POST apikey-gateway.gateway:80/v1/chat/... │
+   │               (with X-API-Key for the gateway)           │
+   │               ─────► gateway → vLLM → answer text        │
+   │                                                          │
+   │  6. respond:                                             │
+   │     {                                                    │
+   │       "answer": "Data is retained 7 years [1][2]...",    │
+   │       "citations": [                                     │
+   │         {source: "policy.pdf", chunk_index: 3,           │
+   │          score: 0.91, snippet: "..."},                   │
+   │         ...                                              │
+   │       ]                                                  │
+   │     }                                                    │
+   └──────────────────────────────────────────────────────────┘
+
+Latency budget (warm path, in-VPC client):
+  auth check    : <1 ms
+  embed         : 10–30 ms     (MiniLM on CPU)
+  retrieve      : 5–20 ms      (Qdrant search, ~100k vectors)
+  generate      : 200–2000 ms  (vLLM, depends on answer length)
+  ────────────────────────────
+  total p50     : ~300 ms      p99: 2–4 s
+```
+
+### 10c. HA + backup
+
+```
+   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+   │  qdrant-0    │  │  qdrant-1    │  │  qdrant-2    │
+   │  (leader)    │◀─│  follower    │◀─│  follower    │
+   │              │  │              │  │              │
+   │   PVC 20Gi   │  │   PVC 20Gi   │  │   PVC 20Gi   │
+   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+          │  Raft consensus over qdrant-headless (P2P:6335)
+          │  podAntiAffinity = different hostnames
+          │  PDB minAvailable = 2  (quorum survives voluntary disruption)
+          ▼
+   Every 6h, qdrant-backup CronJob:
+   ────────────────────────────────
+   for collection in [documents, ingestion_state]:
+     1. POST /collections/{c}/snapshots   (creates server-side snapshot)
+     2. GET  /collections/{c}/snapshots/{name}  (downloads)
+     3. gsutil cp - gs://${PROJECT_ID}-qdrant-snapshots/{c}/...
+     4. DELETE /collections/{c}/snapshots/{name}  (free local disk)
+
+   Snapshots auto-expire after qdrant_snapshot_retention_days (default 30).
+```
+
+### 10d. Security boundaries (RAG specifics)
+
+```
+   Allowed flows ONLY:
+   ────────────────────
+   LB ─────────────▶ query-api:8080          (35.191/130.211 + 10.0.0.0/8)
+   monitoring ──────▶ query-api:9100         (Prometheus scrape)
+   monitoring ──────▶ embeddings:9100        (Prometheus scrape)
+   query-api ──────▶ embeddings:8080        (in-namespace)
+   query-api ──────▶ qdrant.qdrant:6333     (cross-ns, label-matched)
+   query-api ──────▶ gateway.gateway:80     (calls vLLM via Project 1 gateway)
+   ingestion ──────▶ embeddings:8080
+   ingestion ──────▶ qdrant.qdrant:6333
+   ingestion ──────▶ storage.googleapis.com (egress 443 — docs bucket)
+   qdrant ─────────▶ qdrant (P2P:6335)      (Raft, same-ns)
+   qdrant-backup ──▶ storage.googleapis.com (egress 443 — snapshots bucket)
+
+   BLOCKED (default-deny + no matching allow):
+   ───────────────────────────────────────────
+   default ns ─X─▶ qdrant            (lateral movement blocked)
+   default ns ─X─▶ rag               (lateral movement blocked)
+   rag ────────X─▶ public internet  (except 443 for GCP APIs)
+   anything ───X─▶ qdrant.qdrant without rag ns label
+```
