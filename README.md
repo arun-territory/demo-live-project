@@ -1,161 +1,133 @@
-# AI-ML Inference k8s Platform
+# Private GenAI Inference Platform on GKE
 
-A production-ready platform for deploying and serving machine learning models on Kubernetes with auto-scaling, monitoring, and multi-environment support.
+> Self-hosted, OpenAI-compatible LLM API on Google Kubernetes Engine. Private VPC, GPU autoscaling to zero, full observability, enterprise security controls. One `make apply` from zero to a running endpoint.
+
+## The problem this solves
+
+Every BFSI, healthcare, legal, and large-product company in 2026 wants to use LLMs — but **cannot send sensitive data to OpenAI / Anthropic** because of DPDP, GDPR, HIPAA, or trade-secret concerns. They have Kubernetes expertise but not LLM-serving expertise. This platform closes that gap: a reproducible, private LLM inference stack their data never leaves.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Load Balancer / Ingress                   │
-└────────────────────────────┬────────────────────────────────────┘
+                         ┌──────────────────────────────────────┐
+                         │  Private VPC (10.20.0.0/16)          │
+   In-VPC clients ─────► │                                       │
+                         │   Internal LB ──► API Gateway (auth)  │
+                         │                     │                 │
+                         │                     ▼                 │
+                         │              vLLM (Gemma 2 9B)        │
+                         │              L4 GPU pool (min=0)      │
+                         │                     │                 │
+                         │   Prometheus ◄──────┘                 │
+                         │   Grafana                             │
+                         │                                       │
+                         │   ▲  Workload Identity                │
+                         │   │  External Secrets ◄── Secret Mgr  │
+                         └───┼───────────────────────────────────┘
                              │
-              ┌──────────────▼──────────────┐
-              │        API Gateway           │
-              │    (FastAPI + rate limit)     │
-              └──────┬───────────────┬───────┘
-                     │               │
-         ┌───────────▼───┐   ┌───────▼──────────┐
-         │  Inference     │   │  Model Registry   │
-         │  Service Pods  │   │  (S3 / GCS)       │
-         │  (GPU/CPU)     │   └──────────────────┘
-         └───────┬────────┘
-                 │
-    ┌────────────▼────────────┐
-    │   Monitoring Stack       │
-    │  Prometheus + Grafana    │
-    └─────────────────────────┘
+                       Cloud NAT  (egress only — HF model pull)
 ```
 
-## Features
+See [`docs/architecture.md`](docs/architecture.md) for the full diagram and design decisions.
 
-- **Multi-model serving**: Deploy multiple ML models with isolated inference pods
-- **Auto-scaling**: HPA and VPA based on request rate and GPU utilization
-- **Multi-environment**: Dev / Staging / Production via Kustomize overlays
-- **Observability**: Prometheus metrics, Grafana dashboards, structured logging
-- **Helm chart**: One-command deployment with configurable values
-- **Terraform**: EKS cluster provisioning with GPU node groups
-- **CI/CD**: GitHub Actions pipelines for build, test, and deploy
+## What's inside
 
-## Quick Start
+| Concern | What you get |
+|---|---|
+| **Inference engine** | vLLM serving Gemma 2 9B, OpenAI-compatible API (`/v1/chat/completions`) |
+| **Compute** | Private GKE 1.29 with separate CPU + L4 GPU node pools, GPU pool scales to **0** when idle |
+| **Networking** | Private VPC, custom subnets, Cloud NAT for egress, **internal** load balancer only |
+| **Identity** | Workload Identity (no static service-account keys), External Secrets Operator + GCP Secret Manager |
+| **Auth at the edge** | API-key gateway sidecar (FastAPI) — validates `X-API-Key` before forwarding to vLLM |
+| **TLS** | cert-manager + Let's Encrypt (DNS-01 via Cloud DNS) |
+| **Network policy** | Default-deny in `vllm` namespace; only the gateway can reach vLLM |
+| **Pod security** | Restricted Pod Security Standards on all namespaces |
+| **Autoscaling** | HPA on `vllm:num_requests_waiting` (queue depth) via Prometheus Adapter — not CPU |
+| **Observability** | kube-prometheus-stack + a custom Grafana dashboard for TTFT, tokens/sec, queue depth, GPU util, GPU memory, P50/P95/P99 |
+| **Alerts** | GPU memory > 90%, P99 > 5s, error rate > 1%, inference pod down |
+| **Cost controls** | Spot GPU nodes, scheduled scale-to-zero CronJob, billing alerts (instructions in `docs/cost.md`) |
+| **IaC** | Modular Terraform with GCS-backed state, GitHub Actions plan-on-PR / apply-on-main |
+| **Teardown** | `make destroy` — one command, billing-safe by default |
 
-### Prerequisites
+## Quickstart
 
-- Kubernetes 1.27+
-- Helm 3.x
-- kubectl
-- Terraform 1.5+ (for cloud provisioning)
-- Docker
+### Prereqs
+- `gcloud`, `terraform >= 1.5`, `kubectl`, `helm >= 3.14`, `make`
+- A GCP project with billing enabled
+- L4 GPU quota in your region (request via [`scripts/bootstrap.sh`](scripts/bootstrap.sh) — it prints the link)
+- A HuggingFace token (free; for downloading Gemma 2)
 
-### Deploy with Helm
+### Five commands from zero to inference
 
 ```bash
-# Add dependencies
-helm dependency update infrastructure/helm/ml-inference
+# 1. Bootstrap: enable APIs, create the tfstate bucket, prompt for quota
+./scripts/bootstrap.sh
 
-# Deploy to dev
-helm upgrade --install ml-inference infrastructure/helm/ml-inference \
-  --namespace ml-inference \
-  --create-namespace \
-  -f infrastructure/helm/ml-inference/values.yaml
+# 2. Edit terraform/terraform.tfvars (copy from .example)
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+$EDITOR terraform/terraform.tfvars
 
-# Deploy to production
-helm upgrade --install ml-inference infrastructure/helm/ml-inference \
-  --namespace ml-inference-prod \
-  --create-namespace \
-  -f infrastructure/helm/ml-inference/values-prod.yaml
+# 3. Stand up the platform (VPC, GKE, node pools, prom-stack, cert-manager, ESO)
+make apply
+
+# 4. Deploy the workload (vLLM, gateway, ingress, network policies, dashboards)
+make deploy
+
+# 5. Smoke-test
+make smoke-test
 ```
 
-### Deploy with Kustomize
+### Calling the endpoint (OpenAI-compatible)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://llm.internal.example.com/v1",
+    api_key="<your-api-key-from-secret-manager>",
+)
+
+resp = client.chat.completions.create(
+    model="google/gemma-2-9b-it",
+    messages=[{"role": "user", "content": "Summarise the DPDP Act in 3 bullets."}],
+)
+print(resp.choices[0].message.content)
+```
+
+### Tearing it down (billing safety)
 
 ```bash
-# Dev environment
-kubectl apply -k kubernetes/overlays/dev
-
-# Staging
-kubectl apply -k kubernetes/overlays/staging
-
-# Production
-kubectl apply -k kubernetes/overlays/prod
+make destroy
 ```
 
-### Provision EKS with Terraform
+Tears down node pools first (stops GPU billing fastest), then cluster, then network.
 
-```bash
-cd infrastructure/terraform
-terraform init
-terraform plan -var-file="environments/prod.tfvars"
-terraform apply -var-file="environments/prod.tfvars"
-```
-
-## Project Structure
+## Repo layout
 
 ```
-.
-├── .github/workflows/          # CI/CD pipelines
-├── infrastructure/
-│   ├── terraform/              # EKS cluster + networking
-│   └── helm/ml-inference/      # Helm chart
-├── kubernetes/
-│   ├── base/                   # Base k8s manifests
-│   ├── overlays/               # Kustomize overlays per environment
-│   └── monitoring/             # Prometheus + Grafana configs
-├── src/
-│   ├── api/                    # FastAPI inference gateway
-│   └── model_server/           # Model loading + serving logic
-├── docker/                     # Dockerfiles
-├── scripts/                    # Utility scripts
-└── tests/                      # Unit + integration tests
+terraform/         # Modular IaC: network, gke, node-pools, platform (Helm releases)
+kubernetes/        # vLLM workload, gateway, observability, cost-controls
+docker/            # API-key gateway image
+scripts/           # bootstrap, deploy, teardown, smoke-test, load-test
+docs/              # architecture, security, cost, runbook
+tests/integration/ # OpenAI-SDK e2e + network policy enforcement tests
+.github/workflows/ # terraform plan/apply, lint
 ```
 
-## API Reference
+## What makes this production-grade (interview answer)
 
-### POST /v1/infer
+1. **Private by default** — no public IPs on the cluster control plane or workloads. Egress only via Cloud NAT.
+2. **No static credentials** — Workload Identity + External Secrets Operator. Service-account keys never touch the repo.
+3. **Defense in depth** — network policies, restricted Pod Security Standards, image vulnerability scanning, API-key auth at the edge.
+4. **Real autoscaling** — HPA on queue depth, cluster autoscaler scales the GPU pool to zero. You pay for GPUs only when serving requests.
+5. **Operable** — pre-built Grafana dashboard, alert rules, runbook for the top five oncall scenarios.
+6. **Cost-aware** — spot GPUs, scheduled shutdown, $/1M-tokens dashboard, billing alerts documented.
+7. **Reproducible** — every byte of infrastructure is in Terraform, peer-reviewed in PRs, state in a locked GCS bucket.
 
-Run inference on a deployed model.
+## Roadmap
 
-```json
-{
-  "model_name": "resnet50",
-  "model_version": "1.0.0",
-  "inputs": [
-    {
-      "name": "image",
-      "data": "<base64-encoded-data>",
-      "shape": [1, 3, 224, 224],
-      "datatype": "FP32"
-    }
-  ]
-}
-```
-
-### GET /v1/models
-
-List all deployed models and their status.
-
-### GET /healthz
-
-Liveness probe endpoint.
-
-### GET /readyz
-
-Readiness probe endpoint.
-
-## Monitoring
-
-Access Grafana at `http://<ingress-host>/grafana` (default credentials in `kubernetes/monitoring/`).
-
-Key dashboards:
-- **Inference Latency**: p50/p95/p99 latency per model
-- **Throughput**: Requests/sec and token/sec
-- **GPU Utilization**: Per-node GPU memory and compute usage
-- **Error Rates**: 4xx/5xx breakdown by model and endpoint
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Run tests: `./scripts/test.sh`
-4. Submit a pull request
+- **Phase 2** (this repo, next): Private RAG platform — Qdrant + automated GCS-triggered ingestion + retrieval API on the same GKE cluster.
+- **Phase 3**: Multi-tenant model routing, per-tenant quotas, OpenTelemetry traces across embed → retrieve → generate.
 
 ## License
 

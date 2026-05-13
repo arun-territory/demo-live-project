@@ -1,0 +1,72 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vllm-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  groups:
+    - name: vllm.rules
+      interval: 30s
+      rules:
+        # ── Recording rules ────────────────────────────────────────────────
+        - record: vllm:p99_latency_seconds:5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le, pod))
+
+        - record: vllm:tokens_per_second:5m
+          expr: |
+            sum(rate(vllm:generation_tokens_total[5m])) by (pod)
+
+        - record: vllm:error_rate:5m
+          expr: |
+            sum(rate(apikey_gateway_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(apikey_gateway_requests_total[5m]))
+
+        # ── Alerts ─────────────────────────────────────────────────────────
+        - alert: VLLMHighP99Latency
+          expr: vllm:p99_latency_seconds:5m > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "vLLM P99 latency >5s for {{ $labels.pod }}"
+            description: "P99 inference latency is {{ $value | printf \"%.2f\" }}s — consider scaling out or checking model load."
+
+        - alert: VLLMHighErrorRate
+          expr: vllm:error_rate:5m > 0.01
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Gateway error rate >1%"
+            description: "Error rate is {{ $value | humanizePercentage }}."
+
+        - alert: VLLMPodDown
+          expr: up{job="vllm"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "vLLM pod is down"
+
+        - alert: GPUMemoryHigh
+          expr: DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_FREE > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GPU memory > 90% on {{ $labels.instance }}"
+            description: "VRAM headroom is low — risk of OOM. Reduce --max-model-len or --gpu-memory-utilization."
+
+        - alert: VLLMQueueBacklog
+          expr: vllm:num_requests_waiting > 20
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "vLLM queue backlog growing on {{ $labels.pod }}"
+            description: "{{ $value }} requests waiting — HPA should be scaling out; verify GPU pool can grow."

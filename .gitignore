@@ -1,59 +1,54 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
 .venv/
 venv/
 env/
-*.egg-info/
-dist/
-build/
 .pytest_cache/
 .coverage
 htmlcov/
-*.log
 
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.backup
-*.tfstate.lock.info
-.terraform.lock.hcl
-*.auto.tfvars
-!example.tfvars
-
-# Kubernetes secrets
-*-secret.yaml
-*-secrets.yaml
+# Kubernetes / secrets
 kubeconfig
 *.kubeconfig
+*-secret.yaml
+*-secrets.yaml
+!externalsecret.yaml
 
-# Docker
-.dockerignore
+# GCP credentials — never commit
+*service-account*.json
+*credentials*.json
+gcp-key.json
 
-# IDE
+# Helm
+charts/
+Chart.lock
+
+# IDE / OS
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
 
-# Models (large binaries)
-*.pt
-*.pth
-*.onnx
-*.pb
-*.h5
-*.pkl
-models/weights/
+# Build artifacts
+dist/
+build/
+*.egg-info/
 
-# Environment files
+# Local env
 .env
 .env.*
 !.env.example
-
-# Helm chart lock
-Chart.lock
-charts/

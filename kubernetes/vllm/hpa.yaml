@@ -1,0 +1,41 @@
+# Scale on queue depth (vllm:num_requests_waiting), not CPU. CPU is a poor
+# proxy for LLM load because the GPU does the work; this metric reflects real
+# backpressure on the inference engine.
+#
+# Requires Prometheus Adapter to expose the metric (installed by the platform
+# module).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vllm
+  namespace: vllm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vllm
+  minReplicas: 1
+  maxReplicas: 4    # bound by GPU pool max_nodes
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: vllm_num_requests_waiting
+        target:
+          type: AverageValue
+          # Scale up when avg queued requests per pod exceeds 5.
+          averageValue: "5"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleDown:
+      # Slow down. GPU pods are expensive to churn — model reload is ~2 min.
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300

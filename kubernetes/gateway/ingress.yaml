@@ -1,0 +1,42 @@
+# Internal Load Balancer — reachable only inside the VPC.
+# TLS terminated here using a cert provisioned by cert-manager (see
+# certificate.yaml). To go fully internal, peer your client VPCs to this one
+# or expose via Cloud VPN.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vllm
+  namespace: gateway
+  annotations:
+    # Use GCE Internal LB (regional). For external L7, switch to "gce".
+    kubernetes.io/ingress.class: "gce-internal"
+    networking.gke.io/managed-certificates: ""  # we use cert-manager, not GCP-managed certs
+    cert-manager.io/cluster-issuer: letsencrypt-dns01
+    networking.gke.io/v1beta1.FrontendConfig: vllm-frontend
+spec:
+  tls:
+    - hosts:
+        - llm.internal.example.com   # replaced at deploy time via kustomize patch / sed
+      secretName: vllm-tls
+  rules:
+    - host: llm.internal.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apikey-gateway
+                port:
+                  number: 80
+---
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: vllm-frontend
+  namespace: gateway
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT
+  sslPolicy: ""   # leave default unless your org mandates a stricter SSL policy

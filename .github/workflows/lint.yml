@@ -1,0 +1,73 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ibiqlik/action-yamllint@v3
+        with:
+          config_data: |
+            extends: relaxed
+            rules:
+              line-length: { max: 200, level: warning }
+          file_or_dir: kubernetes/ .github/workflows/
+
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/apikey-gateway/Dockerfile
+
+  kubeval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -sSLo kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.6/kubeconform-linux-amd64.tar.gz
+          tar xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+      - name: Validate manifests
+        run: |
+          # Render placeholders so kubeconform can parse the schemas
+          find kubernetes -name '*.yaml' | while read f; do
+            sed -e 's|PROJECT_ID|test-project|g' \
+                -e 's|REGION|us-central1|g' \
+                -e 's|CLUSTER_NAME|test-cluster|g' \
+                -e 's|REGISTRY|test-registry|g' "$f" \
+              | kubeconform -strict -summary -ignore-missing-schemas \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' -
+          done
+
+  tflint:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: terraform } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.8.5 }
+      - run: terraform fmt -check -recursive
+      - uses: terraform-linters/setup-tflint@v4
+        with: { tflint_version: v0.51.1 }
+      - run: tflint --init && tflint --recursive
+
+  gateway-tests:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: docker/apikey-gateway } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: 'pip', cache-dependency-path: 'docker/apikey-gateway/requirements.txt' }
+      - run: pip install -r requirements.txt pytest pytest-asyncio ruff
+      - run: ruff check .
+      - run: pytest -q ../../tests/integration/test_gateway.py

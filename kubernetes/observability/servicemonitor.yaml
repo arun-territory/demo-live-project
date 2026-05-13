@@ -1,0 +1,37 @@
+# ServiceMonitor CRDs scraped by kube-prometheus-stack.
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  namespaceSelector:
+    matchNames: [vllm]
+  selector:
+    matchLabels:
+      app: vllm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: apikey-gateway
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  namespaceSelector:
+    matchNames: [gateway]
+  selector:
+    matchLabels:
+      app: apikey-gateway
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

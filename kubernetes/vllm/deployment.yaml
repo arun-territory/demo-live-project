@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: vllm
+  labels:
+    app: vllm
+    component: inference
+spec:
+  # Start at 1; the HPA takes over from here based on queue depth.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+        component: inference
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: vllm
+      terminationGracePeriodSeconds: 60
+
+      # Schedule onto the GPU pool (tainted) — only this workload tolerates it.
+      nodeSelector:
+        pool: gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: present
+          effect: NoSchedule
+
+      # Don't co-locate replicas on the same GPU node.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: vllm
+              topologyKey: kubernetes.io/hostname
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.5.0
+          imagePullPolicy: IfNotPresent
+
+          args:
+            - "--model"
+            - "google/gemma-2-9b-it"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8000"
+            - "--dtype"
+            - "bfloat16"
+            - "--max-model-len"
+            - "8192"
+            - "--gpu-memory-utilization"
+            - "0.90"
+            - "--tensor-parallel-size"
+            - "1"
+            - "--disable-log-requests"   # Avoid logging prompt content
+            - "--enforce-eager"          # Disable CUDA graphs (saves boot time on L4)
+
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+            - name: HF_HOME
+              value: /cache/hf
+            - name: VLLM_LOGGING_LEVEL
+              value: INFO
+            # vLLM uses NCCL even for TP=1; quiet down chatty default.
+            - name: NCCL_DEBUG
+              value: WARN
+
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: "2"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+
+          # First request after model load can be slow — give the readiness
+          # probe ample warmup time.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 60   # 60 × 10s = 10 min for model download + load
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # vLLM writes to /tmp
+            capabilities:
+              drop: [ALL]
+
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /cache/hf
+            - name: shm
+              mountPath: /dev/shm
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: hf-cache
+          emptyDir:
+            sizeLimit: 50Gi    # gemma-2-9b weights ~18GB
+        # vLLM needs a sizeable /dev/shm for inter-process tensor sharing.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

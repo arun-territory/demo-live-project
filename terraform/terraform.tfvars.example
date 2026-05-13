@@ -1,0 +1,23 @@
+# Copy this file to terraform.tfvars and fill in your values. terraform.tfvars
+# is gitignored — never commit it.
+
+project_id  = "my-gcp-project-id"
+region      = "us-central1"
+environment = "dev"
+
+# Tighten this to the actual CIDRs of clients that need kubectl access (your
+# corp VPN, GitHub Actions runners' egress IPs, your bastion subnet, etc).
+master_authorized_cidrs = [
+  { cidr_block = "10.0.0.0/8", display_name = "rfc1918-internal" },
+]
+
+# Override pool sizing for prod:
+# gpu_pool = {
+#   machine_type      = "g2-standard-8"
+#   accelerator       = "nvidia-l4"
+#   accelerator_count = 1
+#   min_nodes         = 1   # keep one warm in prod
+#   max_nodes         = 10
+#   disk_size_gb      = 100
+#   spot              = false  # spot in dev only
+# }

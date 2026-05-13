@@ -1,0 +1,125 @@
+# Scheduled shutdown for the GPU pool. Scales the GPU node pool to zero
+# every weekday at 22:00 IST and back to min=1 at 09:00 IST. Saves ~60% of
+# GPU spend on a dev cluster used during business hours only.
+#
+# Drop this CronJob entirely on prod, or change the schedule to weekends only.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-resizer
+  namespace: platform
+  annotations:
+    # Bind to a GCP SA with container.clusterAdmin on this cluster only.
+    iam.gke.io/gcp-service-account: cluster-resizer@PROJECT_ID.iam.gserviceaccount.com
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gpu-pool-shutdown
+  namespace: platform
+spec:
+  schedule: "30 16 * * 1-5"   # 22:00 IST  (16:30 UTC) Mon–Fri
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: cluster-resizer
+          restartPolicy: OnFailure
+          nodeSelector:
+            pool: cpu
+          containers:
+            - name: gcloud
+              image: gcr.io/google.com/cloudsdktool/cloud-sdk:478.0.0-slim
+              command: [/bin/bash, -c]
+              args:
+                - |
+                  set -euo pipefail
+                  gcloud container clusters resize "$CLUSTER_NAME" \
+                    --node-pool=gpu-pool \
+                    --region="$REGION" \
+                    --num-nodes=0 \
+                    --quiet
+              env:
+                - name: CLUSTER_NAME
+                  value: CLUSTER_NAME    # replaced at deploy time
+                - name: REGION
+                  value: REGION
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits:   { cpu: 200m, memory: 256Mi }
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: config
+                  mountPath: /.config
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: config
+              emptyDir: {}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gpu-pool-startup
+  namespace: platform
+spec:
+  schedule: "30 3 * * 1-5"    # 09:00 IST  (03:30 UTC) Mon–Fri
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: cluster-resizer
+          restartPolicy: OnFailure
+          nodeSelector:
+            pool: cpu
+          containers:
+            - name: gcloud
+              image: gcr.io/google.com/cloudsdktool/cloud-sdk:478.0.0-slim
+              command: [/bin/bash, -c]
+              args:
+                - |
+                  set -euo pipefail
+                  # Set min=1, max=4 — autoscaler handles further growth.
+                  gcloud container node-pools update gpu-pool \
+                    --cluster="$CLUSTER_NAME" \
+                    --region="$REGION" \
+                    --enable-autoscaling \
+                    --min-nodes=1 \
+                    --max-nodes=4 \
+                    --quiet
+              env:
+                - name: CLUSTER_NAME
+                  value: CLUSTER_NAME
+                - name: REGION
+                  value: REGION
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits:   { cpu: 200m, memory: 256Mi }
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: tmp, mountPath: /tmp }
+                - { name: config, mountPath: /.config }
+          volumes:
+            - { name: tmp, emptyDir: {} }
+            - { name: config, emptyDir: {} }
