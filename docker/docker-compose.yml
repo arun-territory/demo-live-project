@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  inference-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    environment:
+      - LOG_LEVEL=DEBUG
+      - MODEL_STORE_PATH=/models
+      - MAX_WORKERS=2
+    volumes:
+      - model-store:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    ports:
+      - "9091:9090"
+    volumes:
+      - ../kubernetes/monitoring/prometheus-config.yaml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  model-store:
+  grafana-data:

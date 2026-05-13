@@ -1,0 +1,19 @@
+FROM nvcr.io/nvidia/tritonserver:24.04-py3 AS triton-base
+
+RUN pip install --no-cache-dir \
+    fastapi==0.111.0 \
+    uvicorn[standard]==0.30.1 \
+    tritonclient[grpc,http]==2.45.0 \
+    numpy==1.26.4 \
+    prometheus-client==0.20.0
+
+WORKDIR /app
+COPY src/model_server/ ./model_server/
+COPY src/api/ .
+
+ENV PYTHONPATH=/app
+ENV MODEL_STORE_PATH=/models
+
+EXPOSE 8080 8001 8002
+
+CMD ["python", "main.py"]

@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ml-inference-dev
+
+bases:
+  - ../../base
+
+namePrefix: dev-
+
+commonLabels:
+  environment: dev
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: ml-inference-api
+  - patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: inference.dev.example.com
+    target:
+      kind: Ingress
+      name: ml-inference-ingress
+
+configMapGenerator:
+  - name: ml-inference-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - MAX_WORKERS=2

@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: ml-inference
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+
+    scrape_configs:
+      - job_name: ml-inference-api
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - ml-inference
+                - ml-inference-dev
+                - ml-inference-staging
+                - ml-inference-prod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_environment]
+            target_label: environment
+
+  alerts.yaml: |
+    groups:
+      - name: ml-inference-alerts
+        rules:
+          - alert: HighInferenceLatency
+            expr: histogram_quantile(0.99, rate(inference_request_duration_seconds_bucket[5m])) > 5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High p99 inference latency"
+              description: "p99 latency is {{ $value }}s for {{ $labels.endpoint }}"
+
+          - alert: HighErrorRate
+            expr: rate(inference_requests_total{status_code=~"5.."}[5m]) / rate(inference_requests_total[5m]) > 0.05
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High inference error rate"
+              description: "Error rate is {{ $value | humanizePercentage }}"
+
+          - alert: InferencePodDown
+            expr: up{job="ml-inference-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Inference pod is down"

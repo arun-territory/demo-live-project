@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ml-inference-staging
+
+bases:
+  - ../../base
+
+namePrefix: staging-
+
+commonLabels:
+  environment: staging
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: ml-inference-api
+  - patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: inference.staging.example.com
+    target:
+      kind: Ingress
+      name: ml-inference-ingress
+
+configMapGenerator:
+  - name: ml-inference-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=INFO
+      - MAX_WORKERS=4

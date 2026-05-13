@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-inference-api
+  namespace: ml-inference
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: ml-inference-api
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+  namespaceSelector:
+    matchNames:
+      - ml-inference
+      - ml-inference-prod

@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform.lock.hcl
+*.auto.tfvars
+!example.tfvars
+
+# Kubernetes secrets
+*-secret.yaml
+*-secrets.yaml
+kubeconfig
+*.kubeconfig
+
+# Docker
+.dockerignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Models (large binaries)
+*.pt
+*.pth
+*.onnx
+*.pb
+*.h5
+*.pkl
+models/weights/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Helm chart lock
+Chart.lock
+charts/

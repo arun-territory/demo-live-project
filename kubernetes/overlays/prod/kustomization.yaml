@@ -1,0 +1,58 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ml-inference-prod
+
+bases:
+  - ../../base
+
+namePrefix: prod-
+
+commonLabels:
+  environment: prod
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 4
+    target:
+      kind: Deployment
+      name: ml-inference-api
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "1000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "4000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+    target:
+      kind: Deployment
+      name: ml-inference-api
+  - patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: inference.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - inference.example.com
+            secretName: inference-tls
+    target:
+      kind: Ingress
+      name: ml-inference-ingress
+
+configMapGenerator:
+  - name: ml-inference-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=WARNING
+      - MAX_WORKERS=8
+      - REQUEST_TIMEOUT_SECONDS=60
