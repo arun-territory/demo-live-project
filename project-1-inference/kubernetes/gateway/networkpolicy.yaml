@@ -1,0 +1,96 @@
+# Gateway namespace is reachable from the ingress LB only; egress restricted
+# to vllm (the upstream it proxies to) and DNS / GCP metadata for auth.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: gateway
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-lb-ingress
+  namespace: gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: apikey-gateway
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        # GCE LB health-check + proxy ranges — allow all (LB is internal).
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
+        # Internal traffic from the VPC's own ranges.
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: apikey-gateway
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9100
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress
+  namespace: gateway
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # vLLM upstream
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vllm
+          podSelector:
+            matchLabels:
+              app: vllm
+      ports:
+        - { protocol: TCP, port: 8000 }
+    # GCP metadata for Workload Identity
+    - to:
+        - ipBlock: { cidr: 169.254.169.254/32 }
+      ports:
+        - { protocol: TCP, port: 80 }
+        - { protocol: TCP, port: 988 }
+    # Secret Manager API
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - { protocol: TCP, port: 443 }

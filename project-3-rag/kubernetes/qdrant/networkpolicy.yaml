@@ -1,0 +1,106 @@
+# Default-deny + targeted allows.
+# Qdrant accepts:
+#   - peer-to-peer between qdrant pods (Raft)
+#   - HTTP/gRPC from the rag namespace
+#   - scrape from monitoring (none today — Qdrant doesn't expose Prometheus
+#     metrics natively; remove this block or add later if you wire up an
+#     exporter sidecar)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: qdrant
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cluster-peers
+  namespace: qdrant
+spec:
+  podSelector:
+    matchLabels:
+      app: qdrant
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: qdrant
+      ports:
+        - protocol: TCP
+          port: 6335   # P2P
+        - protocol: TCP
+          port: 6333   # http (internal probes)
+        - protocol: TCP
+          port: 6334   # grpc
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: qdrant
+      ports:
+        - protocol: TCP
+          port: 6335
+        - protocol: TCP
+          port: 6333
+        - protocol: TCP
+          port: 6334
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-rag-clients
+  namespace: qdrant
+spec:
+  podSelector:
+    matchLabels:
+      app: qdrant
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: rag
+      ports:
+        - protocol: TCP
+          port: 6333
+        - protocol: TCP
+          port: 6334
+---
+# Egress for DNS + GCP metadata + Secret Manager (via Workload Identity) +
+# GCS (for the backup CronJob).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-essentials
+  namespace: qdrant
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32  # GKE metadata server
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

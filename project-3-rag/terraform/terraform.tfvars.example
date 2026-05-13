@@ -1,0 +1,15 @@
+# Copy this file to terraform.tfvars and fill in your values.
+
+project_id  = "your-gcp-project-id"
+region      = "us-central1"
+environment = "dev"
+
+# Set true ONLY in dev — lets terraform destroy delete non-empty buckets.
+force_destroy_buckets = false
+
+# Set true to also create a Pub/Sub topic + GCS notification for event-driven
+# ingestion. The 5-minute CronJob works fine without this.
+enable_event_driven_ingestion = false
+
+# Days to keep Qdrant snapshot backups in GCS.
+qdrant_snapshot_retention_days = 30

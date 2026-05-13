@@ -1,0 +1,75 @@
+# Snapshot Qdrant collections to GCS every 6h.
+# Calls the Qdrant snapshot API, then streams the .snapshot file to GCS.
+# Retention is handled by a GCS lifecycle rule (terraform/modules/rag).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qdrant-backup
+  namespace: qdrant
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: qdrant-backup
+          restartPolicy: OnFailure
+          nodeSelector:
+            pool: cpu
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              image: google/cloud-sdk:480.0.0-slim
+              env:
+                - name: QDRANT_HOST
+                  value: "qdrant.qdrant.svc.cluster.local:6333"
+                - name: QDRANT_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: qdrant-api-key
+                      key: api-key
+                - name: BACKUP_BUCKET
+                  value: "PROJECT_ID-qdrant-snapshots"
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  TS=$(date -u +%Y%m%dT%H%M%SZ)
+                  echo "==> Listing collections"
+                  COLLECTIONS=$(curl -fsS -H "api-key: $QDRANT_API_KEY" \
+                    "http://${QDRANT_HOST}/collections" \
+                    | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin)["result"]["collections"]))')
+                  for c in $COLLECTIONS; do
+                    echo "==> Snapshotting collection: $c"
+                    SNAP=$(curl -fsS -X POST -H "api-key: $QDRANT_API_KEY" \
+                      "http://${QDRANT_HOST}/collections/${c}/snapshots" \
+                      | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["name"])')
+                    echo "==> Downloading $SNAP -> GCS"
+                    curl -fsS -H "api-key: $QDRANT_API_KEY" \
+                      "http://${QDRANT_HOST}/collections/${c}/snapshots/${SNAP}" \
+                      | gsutil cp - "gs://${BACKUP_BUCKET}/${c}/${TS}-${SNAP}"
+                    echo "==> Deleting local snapshot"
+                    curl -fsS -X DELETE -H "api-key: $QDRANT_API_KEY" \
+                      "http://${QDRANT_HOST}/collections/${c}/snapshots/${SNAP}"
+                  done
+                  echo "==> Backup complete"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop: ["ALL"]

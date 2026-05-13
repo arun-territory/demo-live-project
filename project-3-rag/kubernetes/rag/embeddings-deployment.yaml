@@ -1,0 +1,91 @@
+# Embedding service — sentence-transformers/all-MiniLM-L6-v2 (384-dim).
+# CPU-only by design: embedding throughput is fine on CPU and avoids
+# contending with vLLM for the GPU pool.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embeddings
+  namespace: rag
+  labels:
+    app: embeddings
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: embeddings
+  template:
+    metadata:
+      labels:
+        app: embeddings
+    spec:
+      serviceAccountName: rag-runtime
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        pool: cpu
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: embeddings
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: embeddings
+          image: REGISTRY/embeddings:0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MODEL_NAME
+              value: "sentence-transformers/all-MiniLM-L6-v2"
+            - name: PORT
+              value: "8080"
+            - name: METRICS_PORT
+              value: "9100"
+            - name: HF_HOME
+              value: "/tmp/hf"
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9100
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /tmp/hf
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: hf-cache
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi

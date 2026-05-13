@@ -1,0 +1,54 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Kubernetes / secrets
+kubeconfig
+*.kubeconfig
+*-secret.yaml
+*-secrets.yaml
+!externalsecret.yaml
+
+# GCP credentials — never commit
+*service-account*.json
+*credentials*.json
+gcp-key.json
+
+# Helm
+charts/
+Chart.lock
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Local env
+.env
+.env.*
+!.env.example

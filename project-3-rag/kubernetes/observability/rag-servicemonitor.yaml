@@ -1,0 +1,98 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: query-api
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  namespaceSelector:
+    matchNames: [rag]
+  selector:
+    matchLabels:
+      app: query-api
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: embeddings
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  namespaceSelector:
+    matchNames: [rag]
+  selector:
+    matchLabels:
+      app: embeddings
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: rag-rules
+  namespace: monitoring
+  labels:
+    release: kube-prom-stack
+spec:
+  groups:
+    - name: rag.recording
+      interval: 30s
+      rules:
+        - record: rag:query_latency_p99
+          expr: histogram_quantile(0.99, sum(rate(rag_query_latency_seconds_bucket[5m])) by (le))
+        - record: rag:query_latency_p50
+          expr: histogram_quantile(0.50, sum(rate(rag_query_latency_seconds_bucket[5m])) by (le))
+        - record: rag:retrieve_latency_p99
+          expr: histogram_quantile(0.99, sum(rate(rag_stage_latency_seconds_bucket{stage="retrieve"}[5m])) by (le))
+        - record: rag:embed_latency_p99
+          expr: histogram_quantile(0.99, sum(rate(rag_stage_latency_seconds_bucket{stage="embed"}[5m])) by (le))
+        - record: rag:error_rate
+          expr: |
+            sum(rate(rag_queries_total{status!~"ok|empty"}[5m]))
+            /
+            clamp_min(sum(rate(rag_queries_total[5m])), 0.001)
+    - name: rag.alerts
+      rules:
+        - alert: RAGHighP99Latency
+          expr: rag:query_latency_p99 > 8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "RAG P99 latency >8s for 5 minutes"
+        - alert: RAGHighErrorRate
+          expr: rag:error_rate > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "RAG error rate >5% for 2 minutes"
+        - alert: RAGQueryAPIDown
+          expr: up{namespace="rag",service="query-api"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "RAG query-api pods are down"
+        - alert: RAGEmbeddingsDown
+          expr: up{namespace="rag",service="embeddings"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Embedding service is down"
+        - alert: QdrantQuorumLost
+          expr: kube_statefulset_status_replicas_ready{namespace="qdrant",statefulset="qdrant"} < 2
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Qdrant cluster lost quorum (<2 replicas ready)"

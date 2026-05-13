@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: qdrant
+  namespace: qdrant
+spec:
+  minAvailable: 2   # Raft quorum: need 2 of 3 for writes
+  selector:
+    matchLabels:
+      app: qdrant
